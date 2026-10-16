@@ -6,13 +6,19 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: Zoek nummers op in LRCLIB
+      - name: Zoek J. Cole op in LRCLIB (met opnieuw proberen)
         run: |
-          raw() { echo "--- $1"; curl -sS -G "https://lrclib.net/api/$1" "${@:2}" -A "lyrics-app check" -w '\nHTTP %{http_code}\n' | cut -c1-300; }
-          raw search --data-urlencode "track_name=Broke Out" --data-urlencode "artist_name=J. Cole"
-          raw search --data-urlencode "q=Broke Out Cole"
-          raw search --data-urlencode "q=J. Cole Fall Off"
-          raw search --data-urlencode "artist_name=J. Cole" --data-urlencode "album_name=The Fall-Off"
-          raw get --data-urlencode "track_name=Rein Me In (with Olivia Dean)" --data-urlencode "artist_name=Sam Fender" --data-urlencode "album_name=People Watching (Deluxe Edition)" --data-urlencode "duration=340"
-          raw get --data-urlencode "track_name=Rein Me In (with Olivia Dean)" --data-urlencode "artist_name=Sam Fender" --data-urlencode "album_name=Rein Me In (with Olivia Dean)" --data-urlencode "duration=339"
-          raw get --data-urlencode "track_name=Rein Me In" --data-urlencode "artist_name=Sam Fender" --data-urlencode "album_name=People Watching (Deluxe Edition)" --data-urlencode "duration=339"
+          raw() {
+            for i in 1 2 3 4 5 6 7 8; do
+              out=$(curl -sS -G "https://lrclib.net/api/search" "$@" -A "lyrics-app check" -w '\nHTTP %{http_code}')
+              echo "$out" | grep -q 'HTTP 503' || break
+              sleep 3
+            done
+            echo "--- $* (poging $i)"
+            echo "$out" | head -c 1 >/dev/null
+            echo "$out" | sed '$d' | jq -r 'if type=="array" then (if length==0 then "LEEG: 0 resultaten" else .[] | "\(.trackName) | \(.artistName) | \(.albumName) | \(.duration)s | synced=\(.syncedLyrics != null)" end) else . end' | head -12
+            echo "$out" | tail -1
+          }
+          raw --data-urlencode "track_name=Broke Out" --data-urlencode "artist_name=J. Cole"
+          raw --data-urlencode "q=Broke Out J. Cole"
+          raw --data-urlencode "q=J. Cole The Fall-Off"
