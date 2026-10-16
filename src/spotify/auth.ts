@@ -1,7 +1,16 @@
 // Spotify login via Authorization Code + PKCE: er is geen backend of client secret nodig.
 
-const CLIENT_ID = (import.meta.env.VITE_SPOTIFY_CLIENT_ID ?? '').trim();
-export const hasClientId = CLIENT_ID.length > 0;
+const CLIENT_ID_KEY = 'lyrics.client-id';
+const ENV_CLIENT_ID = (import.meta.env.VITE_SPOTIFY_CLIENT_ID ?? '').trim();
+
+/** Client ID uit de build (.env / GitHub-variabele), anders zelf ingevuld in de app. */
+export function getClientId(): string {
+  return ENV_CLIENT_ID || (localStorage.getItem(CLIENT_ID_KEY) ?? '').trim();
+}
+
+export function setClientId(id: string) {
+  localStorage.setItem(CLIENT_ID_KEY, id.trim());
+}
 
 export const REDIRECT_URI =
   (import.meta.env.VITE_SPOTIFY_REDIRECT_URI as string | undefined)?.trim() ||
@@ -60,7 +69,7 @@ export async function login(): Promise<void> {
   localStorage.setItem(STATE_KEY, state);
 
   const params = new URLSearchParams({
-    client_id: CLIENT_ID,
+    client_id: getClientId(),
     response_type: 'code',
     redirect_uri: REDIRECT_URI,
     scope: SCOPES.join(' '),
@@ -111,7 +120,7 @@ export async function completeLoginFromUrl(): Promise<void> {
     grant_type: 'authorization_code',
     code: code!,
     redirect_uri: REDIRECT_URI,
-    client_id: CLIENT_ID,
+    client_id: getClientId(),
     code_verifier: verifier,
   });
 }
@@ -127,7 +136,7 @@ export async function getAccessToken(forceRefresh = false): Promise<string | nul
     return null;
   }
   refreshing ??= requestToken(
-    { grant_type: 'refresh_token', refresh_token: tokens.refreshToken, client_id: CLIENT_ID },
+    { grant_type: 'refresh_token', refresh_token: tokens.refreshToken, client_id: getClientId() },
     tokens.refreshToken,
   ).finally(() => {
     refreshing = null;

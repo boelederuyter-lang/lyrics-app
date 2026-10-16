@@ -4,39 +4,42 @@ import type { Lyrics } from './lyrics/types';
 import type { TrackInfo } from './spotify/api';
 import type { PlaybackSnapshot } from './spotify/usePlayback';
 
-// Demo-modus (?demo): een verzonnen nummer op 120 BPM, zodat je de visuals zonder Spotify kunt zien.
+// Demo-modus (?demo): een verzonnen nummer, zodat je de visuals zonder Spotify kunt zien.
 
 export const isDemo = new URLSearchParams(window.location.search).has('demo');
 
 const COVER =
   'data:image/svg+xml,' +
   encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><defs><linearGradient id="g" x2="1" y2="1"><stop offset="0" stop-color="#ff2bd6"/><stop offset=".5" stop-color="#7a3cff"/><stop offset="1" stop-color="#18e0ff"/></linearGradient></defs><rect width="64" height="64" fill="url(#g)"/><circle cx="44" cy="20" r="10" fill="#ffd23f"/></svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#111"/><rect x="8" y="30" width="48" height="10" fill="#eee"/><circle cx="46" cy="18" r="8" fill="#777"/></svg>`,
   );
 
+// Zelfgeschreven demo-tekst op 90 BPM (1 maat = 2,667 s).
 export const DEMO_TRACK: TrackInfo = {
-  id: 'demo-neon-hartslag',
-  uri: 'demo:neon-hartslag',
-  name: 'Neon Hartslag',
-  artists: ['Lyrics Party Demo'],
+  id: 'demo-zwart-op-wit',
+  uri: 'demo:zwart-op-wit',
+  name: 'Zwart Op Wit',
+  artists: ['Lyrics Demo'],
   album: 'Demo',
   albumArt: COVER,
-  durationMs: 54_000,
+  durationMs: 50_000,
 };
 
 const DEMO_LRC = `
-[00:04.00]Zet het licht aan, zet het harder
-[00:08.00]Voel de bas door de vloer
-[00:12.00]We zingen mee met elke tel
-[00:16.00]Tot de nacht niet meer bestaat
-[00:20.00]
-[00:26.00]<00:26.00>Neon <00:26.50>hartslag <00:27.50>in <00:28.00>mijn <00:28.50>hoofd <00:29.50>
-[00:30.00]<00:30.00>Neon <00:30.50>hartslag <00:31.50>laat <00:32.00>niet <00:32.50>los <00:33.50>
-[00:34.00]Neon hartslag in mijn hoofd
-[00:38.00]Neon hartslag laat niet los
-[00:42.00]Handen hoog, nog één keer!
-[00:46.00]Neon hartslag in mijn hoofd
-[00:50.00]
+[00:02.67]Kom uit de schaduw, stap in het licht
+[00:05.33]Elke zin raak, elk woord een gedicht
+[00:08.00]Beat in m'n borst en de bas in de straat
+[00:10.67]Ik schrijf het op tot het blad niet meer praat
+[00:13.33]Ze zeggen rustig aan, maar ik ken geen rem
+[00:16.00]Heel de stad hoort nu eindelijk m'n stem
+[00:18.67]Van niks naar iets, van de kelder naar boven
+[00:21.33]Wat ik zie in m'n hoofd ga je straks pas geloven
+[00:24.00]
+[00:26.67]<00:26.67>Zwart <00:27.00>op <00:27.33>wit, <00:28.33>ik <00:28.67>zeg <00:29.00>het <00:29.33>zoals <00:29.67>het <00:30.00>is <00:31.00>
+[00:32.00]<00:32.00>Elke <00:32.33>regel <00:32.67>die <00:33.00>ik <00:33.33>schrijf, <00:34.00>is <00:34.33>een <00:34.67>regel <00:35.00>die <00:35.33>blijft <00:36.33>
+[00:37.33]Zwart op wit, ik zeg het zoals het is
+[00:42.67]Elke regel die ik schrijf, is een regel die blijft
+[00:48.00]
 `;
 
 export const DEMO_LYRICS: Lyrics = (() => {

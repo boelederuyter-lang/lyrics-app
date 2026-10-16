@@ -23,6 +23,14 @@ const EMPTY: PlaybackSnapshot = {
   isLocal: false,
 };
 
+/**
+ * De Web Playback SDK werkt niet in mobiele browsers. Daar speel je af in de Spotify-app
+ * en volgen wij mee via de Web API.
+ */
+export const browserPlaybackSupported =
+  !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) &&
+  !(navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+
 const POLL_MS = 2500;
 const LOCAL_SYNC_MS = 1000;
 /** Kleine afwijkingen negeren we, anders springen de animaties bij elke poll. */
@@ -87,7 +95,7 @@ export function usePlayback(enabled: boolean) {
 
   // Web Playback SDK: maakt van deze browser een Spotify-apparaat (vereist Premium).
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !browserPlaybackSupported) return;
     let cancelled = false;
 
     const init = () => {
@@ -186,10 +194,16 @@ export function usePlayback(enabled: boolean) {
       window.clearTimeout(timer);
       timer = window.setTimeout(poll, 350);
     };
+    // Terug in de app (bv. na een nummer kiezen in Spotify): meteen verversen.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') poll();
+    };
+    document.addEventListener('visibilitychange', onVisible);
     poll();
     return () => {
       stopped = true;
       window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [enabled, update]);
 

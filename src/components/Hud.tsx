@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { BeatGrid } from '../beat/tempo';
 import type { PlaybackSnapshot } from '../spotify/usePlayback';
 import { STAGE_STYLES, type StageStyle } from '../visual/LyricsStage';
@@ -21,18 +22,16 @@ interface Props {
     previous: () => void;
     playHere: () => void;
   };
-  onFullscreen: () => void;
+  onFullscreen: (() => void) | null;
   onLogout: () => void;
+  logoutLabel: string;
 }
 
 export function Hud(p: Props) {
+  const [toolsOpen, setToolsOpen] = useState(false);
   const { track } = p.snapshot;
   const bpmLabel =
-    p.grid.source === 'tap'
-      ? `${p.grid.bpm.toFixed(0)} BPM`
-      : p.grid.source === 'lyrics'
-        ? `≈ ${p.grid.bpm.toFixed(0)} BPM`
-        : '— BPM';
+    p.grid.source === 'tap' ? `${p.grid.bpm.toFixed(0)} BPM` : p.grid.source === 'lyrics' ? `≈${p.grid.bpm.toFixed(0)} BPM` : '— BPM';
 
   return (
     <div className={`hud ${p.visible ? '' : 'hud-hidden'}`}>
@@ -50,12 +49,7 @@ export function Hud(p: Props) {
         </div>
         <nav className="segmented" aria-label="Stijl">
           {STAGE_STYLES.map((s, i) => (
-            <button
-              key={s.id}
-              className={p.style === s.id ? 'on' : ''}
-              onClick={() => p.onStyle(s.id)}
-              title={`${s.label} (${i + 1})`}
-            >
+            <button key={s.id} className={p.style === s.id ? 'on' : ''} onClick={() => p.onStyle(s.id)} title={`${s.label} (${i + 1})`}>
               {s.label}
             </button>
           ))}
@@ -63,8 +57,8 @@ export function Hud(p: Props) {
       </header>
 
       <footer className="hud-bottom">
-        <div className="hud-group">
-          <span className="chip" title={p.grid.source === 'lyrics' ? `Geschat uit lyrics (zekerheid ${(p.grid.confidence * 100).toFixed(0)}%)` : ''}>
+        <div className={`hud-group tools ${toolsOpen ? 'open' : ''}`}>
+          <span className="chip" title={p.grid.source === 'lyrics' ? `Geschat uit lyrics (${(p.grid.confidence * 100).toFixed(0)}% zeker)` : ''}>
             {bpmLabel}
           </span>
           <button className="ghost" onClick={p.onTap} title="Tik mee op de beat (T)">
@@ -87,17 +81,21 @@ export function Hud(p: Props) {
           <button className="ghost" onClick={() => p.onOffset(p.offsetMs + 100)} title="Lyrics later (])">
             +
           </button>
+          <span className="sep" />
+          <button className="ghost" onClick={p.onLogout}>
+            {p.logoutLabel}
+          </button>
         </div>
 
         <div className="transport">
           <button onClick={p.controls.previous} aria-label="Vorige">
-            ⏮
+            <Icon d="M7 6v12M18 6l-9 6 9 6z" />
           </button>
           <button className="play" onClick={p.controls.togglePlay} aria-label={p.snapshot.paused ? 'Afspelen' : 'Pauze'}>
-            {p.snapshot.paused ? '▶' : '❚❚'}
+            {p.snapshot.paused ? <Icon d="M8 5l11 7-11 7z" fill /> : <Icon d="M7 5h4v14H7zM13 5h4v14h-4z" fill />}
           </button>
           <button onClick={p.controls.next} aria-label="Volgende">
-            ⏭
+            <Icon d="M17 6v12M6 6l9 6-9 6z" />
           </button>
         </div>
 
@@ -107,14 +105,24 @@ export function Hud(p: Props) {
               Speel hier af
             </button>
           )}
-          <button className="ghost" onClick={p.onFullscreen} title="Fullscreen (F)">
-            ⛶
-          </button>
-          <button className="ghost" onClick={p.onLogout} title="Uitloggen">
-            Uitloggen
+          {p.onFullscreen && (
+            <button className="ghost fullscreen-btn" onClick={p.onFullscreen} title="Fullscreen (F)" aria-label="Fullscreen">
+              <Icon d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+            </button>
+          )}
+          <button className={`ghost tools-toggle ${toolsOpen ? 'on' : ''}`} onClick={() => setToolsOpen((o) => !o)} aria-label="Instellingen">
+            <Icon d="M4 7h10M18 7h2M4 17h4M12 17h8M14 4v6M8 14v6" />
           </button>
         </div>
       </footer>
     </div>
+  );
+}
+
+function Icon({ d, fill = false }: { d: string; fill?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
+      <path d={d} fill={fill ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={fill ? 0 : 2} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }

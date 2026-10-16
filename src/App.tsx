@@ -1,15 +1,13 @@
-import { motion } from 'motion/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_GRID, estimateBeatGrid, gridFromTaps, type BeatGrid } from './beat/tempo';
 import { Hud } from './components/Hud';
 import { DEMO_LYRICS, DEMO_TRACK, isDemo, useDemoPlayback } from './demo';
 import { primeLyrics } from './lyrics/lrclib';
 import { useLyrics } from './lyrics/useLyrics';
-import { completeLoginFromUrl, hasClientId, isLoggedIn, login, logout, REDIRECT_URI } from './spotify/auth';
-import { usePlayback } from './spotify/usePlayback';
+import { completeLoginFromUrl, getClientId, isLoggedIn, login, logout, REDIRECT_URI, setClientId } from './spotify/auth';
+import { browserPlaybackSupported, usePlayback } from './spotify/usePlayback';
 import { Background } from './visual/Background';
-import { Equalizer, LyricsStage, STAGE_STYLES, TitleCard, type StageStyle } from './visual/LyricsStage';
-import { DEFAULT_PALETTE, extractPalette, hsl, type Palette } from './visual/palette';
+import { Bars, LyricsStage, STAGE_STYLES, TitleCard, type StageStyle } from './visual/LyricsStage';
 import { useStageClock } from './visual/useStageClock';
 
 function usePersisted<T>(key: string, initial: T) {
@@ -54,33 +52,70 @@ export default function App() {
 }
 
 function Login({ error }: { error: string | null }) {
+  const [clientId, setClientIdState] = useState(getClientId);
+  const [draft, setDraft] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const copyRedirect = () => {
+    navigator.clipboard?.writeText(REDIRECT_URI).then(() => setCopied(true), () => {});
+  };
+
   return (
     <main className="login">
-      <Background palette={DEFAULT_PALETTE} getTime={() => performance.now()} grid={DEFAULT_GRID} paused={false} lineKey={-1} hype={false} />
+      <Background art={null} lineKey={-1} />
       <div className="login-card">
-        <TitleCard title="Lyrics Party" subtitle="Je Spotify-nummers als bewegende lyric-video, live op de beat." />
-        {hasClientId ? (
-          <motion.button className="accent big" onClick={() => login()} whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.95 }}>
+        <TitleCard title="Lyrics" subtitle="Spotify lyrics, live op de beat" />
+        {clientId ? (
+          <button className="accent big" onClick={() => login()}>
             Verbind met Spotify
-          </motion.button>
+          </button>
         ) : (
           <div className="setup">
-            <p>Nog één stap: maak een Spotify-app aan en zet de Client ID in <code>.env</code>.</p>
+            <p>Eenmalig instellen:</p>
             <ol>
               <li>
-                Ga naar <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer">developer.spotify.com/dashboard</a> en maak een app.
+                Maak een app op{' '}
+                <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer">
+                  developer.spotify.com/dashboard
+                </a>{' '}
+                en vink <b>Web API</b> en <b>Web Playback SDK</b> aan.
               </li>
               <li>
-                Vink <b>Web API</b> en <b>Web Playback SDK</b> aan en voeg deze Redirect URI toe: <code>{REDIRECT_URI}</code>
+                Zet deze Redirect URI erbij:
+                <button className="copy" onClick={copyRedirect}>
+                  <code>{REDIRECT_URI}</code>
+                  <span>{copied ? 'gekopieerd' : 'kopieer'}</span>
+                </button>
               </li>
-              <li>
-                Kopieer <code>.env.example</code> naar <code>.env</code>, vul <code>VITE_SPOTIFY_CLIENT_ID</code> in en herstart <code>npm run dev</code>.
-              </li>
+              <li>Plak hier de Client ID van je app:</li>
             </ol>
+            <form
+              className="client-id"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!draft.trim()) return;
+                setClientId(draft);
+                setClientIdState(getClientId());
+              }}
+            >
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="Client ID"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+              />
+              <button className="accent" type="submit">
+                Opslaan
+              </button>
+            </form>
           </div>
         )}
         {error && <p className="error">{error}</p>}
-        <a className="demo-link" href="?demo">Eerst even kijken? Probeer de demo →</a>
+        <a className="demo-link" href="?demo">
+          Eerst kijken? Open de demo →
+        </a>
       </div>
     </main>
   );
@@ -102,7 +137,6 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
   const [bpmFactor, setBpmFactor] = useState(1);
   const [tapGrid, setTapGrid] = useState<BeatGrid | null>(null);
   const taps = useRef<number[]>([]);
-  const [palette, setPalette] = useState<Palette>(DEFAULT_PALETTE);
 
   const getTime = useCallback(() => getPosition() + offsetMs, [getPosition, offsetMs]);
 
@@ -113,29 +147,12 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
     taps.current = [];
   }, [track?.id]);
 
-  // Kleuren uit de albumhoes.
-  useEffect(() => {
-    if (!track?.albumArt) return;
-    let cancelled = false;
-    extractPalette(track.albumArt)
-      .then((p) => !cancelled && setPalette(p))
-      .catch(() => !cancelled && setPalette(DEFAULT_PALETTE));
-    return () => {
-      cancelled = true;
-    };
-  }, [track?.albumArt]);
-
-  useEffect(() => {
-    const root = document.documentElement.style;
-    palette.colors.forEach((c, i) => root.setProperty(`--c${i}`, hsl(c)));
-    root.setProperty('--base', hsl(palette.base));
-  }, [palette]);
-
   const estimated = useMemo(() => {
     if (!lines) return DEFAULT_GRID;
-    const onsets = lyrics?.kind === 'synced' && lyrics.wordTimed ? lines.flatMap((l) => l.words.map((w) => w.start)) : lines.map((l) => l.start);
+    // Alleen echte tijdstempels: per woord als de bron dat heeft, anders het begin van de regel.
+    const onsets = lines.flatMap((l) => (l.wordTimed ? l.words.map((w) => w.start) : [l.start]));
     return estimateBeatGrid(onsets);
-  }, [lines, lyrics]);
+  }, [lines]);
 
   const grid = useMemo<BeatGrid>(() => {
     const g = tapGrid ?? estimated;
@@ -143,7 +160,8 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
   }, [tapGrid, estimated, bpmFactor]);
 
   const cursor = useStageClock(lines, getTime, grid, snapshot.paused);
-  const hype = cursor.line >= 0 && !!lines?.[cursor.line]?.chorus;
+
+  useWakeLock();
 
   const onTap = useCallback(() => {
     const t = getTime();
@@ -159,6 +177,7 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
   }, [getTime]);
 
   const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenEnabled) return;
     if (document.fullscreenElement) document.exitFullscreen();
     else document.documentElement.requestFullscreen().catch(() => {});
   }, []);
@@ -240,11 +259,20 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
 
   return (
     <main className={`player ${hudVisible ? '' : 'cursor-hidden'}`}>
-      <Background palette={palette} getTime={getTime} grid={grid} paused={snapshot.paused} lineKey={cursor.line} hype={hype} />
+      <Background art={track?.albumArt ?? null} lineKey={cursor.line} />
 
       {!track ? (
         <div className="stage">
-          <TitleCard title="Klaar voor de show" subtitle={deviceReady ? 'Start een nummer in Spotify, of klik op "Speel hier af".' : 'Spotify-speler aan het verbinden…'} />
+          <TitleCard
+            title="Druk op play"
+            subtitle={
+              !browserPlaybackSupported
+                ? 'Start een nummer in de Spotify-app'
+                : deviceReady
+                  ? 'Start een nummer in Spotify, of klik op "Speel hier af"'
+                  : 'Spotify-speler aan het verbinden…'
+            }
+          />
         </div>
       ) : lines ? (
         <LyricsStage lines={lines} cursor={cursor} style={style} title={track.name} />
@@ -253,7 +281,7 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
       ) : (
         <div className="stage">
           <TitleCard key={track.id} title={track.name} subtitle={track.artists.join(', ')} />
-          {lyricsState.status !== 'loading' && <Equalizer />}
+          {lyricsState.status !== 'loading' && <Bars />}
         </div>
       )}
 
@@ -271,8 +299,9 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
         onOffset={setOffsetMs}
         lyricsNote={lyricsNote}
         controls={controls}
-        onFullscreen={toggleFullscreen}
+        onFullscreen={document.fullscreenEnabled ? toggleFullscreen : null}
         onLogout={onLogout}
+        logoutLabel={demo ? 'Demo sluiten' : 'Uitloggen'}
       />
 
       {error && (
@@ -282,6 +311,32 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
       )}
     </main>
   );
+}
+
+/** Houdt het scherm aan zolang de app open is (handig op je telefoon). */
+function useWakeLock() {
+  useEffect(() => {
+    if (!('wakeLock' in navigator)) return;
+    let lock: WakeLockSentinel | null = null;
+    let released = false;
+    const acquire = () => {
+      if (document.visibilityState !== 'visible') return;
+      navigator.wakeLock.request('screen').then(
+        (l) => {
+          if (released) l.release();
+          else lock = l;
+        },
+        () => {},
+      );
+    };
+    acquire();
+    document.addEventListener('visibilitychange', acquire);
+    return () => {
+      released = true;
+      lock?.release();
+      document.removeEventListener('visibilitychange', acquire);
+    };
+  }, []);
 }
 
 /** Zonder timing: tekst scrollt rustig mee op basis van de voortgang in het nummer. */
