@@ -1,0 +1,232 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getAccessToken } from './auth';
+import * as api from './api';
+import type { TrackInfo } from './api';
+
+export interface PlaybackSnapshot {
+  track: TrackInfo | null;
+  positionMs: number;
+  paused: boolean;
+  /** performance.now() op het moment dat positionMs gold. */
+  receivedAt: number;
+  deviceName: string | null;
+  /** true als er in deze browser wordt afgespeeld (Web Playback SDK). */
+  isLocal: boolean;
+}
+
+const EMPTY: PlaybackSnapshot = {
+  track: null,
+  positionMs: 0,
+  paused: true,
+  receivedAt: 0,
+  deviceName: null,
+  isLocal: false,
+};
+
+const POLL_MS = 2500;
+const LOCAL_SYNC_MS = 1000;
+/** Kleine afwijkingen negeren we, anders springen de animaties bij elke poll. */
+const DRIFT_TOLERANCE_MS = 180;
+
+function predict(s: PlaybackSnapshot, now = performance.now()): number {
+  if (!s.track) return 0;
+  const pos = s.paused ? s.positionMs : s.positionMs + (now - s.receivedAt);
+  return Math.min(Math.max(pos, 0), s.track.durationMs || Infinity);
+}
+
+function describeError(err: unknown): string {
+  if (err instanceof api.SpotifyError) {
+    if (err.status === 404) return 'Geen actief Spotify-apparaat. Klik op "Speel hier af" of start muziek in Spotify.';
+    if (err.status === 403) return `Spotify weigerde dit: ${err.message}`;
+    if (err.status === 429) return 'Even rustig aan: Spotify rate limit bereikt.';
+    return err.message;
+  }
+  return err instanceof Error ? err.message : String(err);
+}
+
+export function usePlayback(enabled: boolean) {
+  const [snapshot, setSnapshot] = useState<PlaybackSnapshot>(EMPTY);
+  const snapRef = useRef<PlaybackSnapshot>(EMPTY);
+  const [deviceId, setDeviceId] = useState<string | null>(null);
+  const deviceIdRef = useRef<string | null>(null);
+  const playerRef = useRef<Spotify.Player | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const pollNowRef = useRef<() => void>(() => {});
+
+  const update = useCallback((next: PlaybackSnapshot) => {
+    const prev = snapRef.current;
+    const sameTrack = prev.track?.id === next.track?.id;
+    if (sameTrack && prev.paused === next.paused && prev.isLocal === next.isLocal && !next.paused) {
+      const drift = Math.abs(predict(prev, next.receivedAt) - next.positionMs);
+      if (drift < DRIFT_TOLERANCE_MS) return;
+    }
+    snapRef.current = next;
+    setSnapshot(next);
+  }, []);
+
+  const getPosition = useCallback(() => predict(snapRef.current), []);
+
+  const handleSdkState = useCallback(
+    (state: Spotify.PlaybackState | null) => {
+      if (!state) {
+        if (snapRef.current.isLocal) update({ ...snapRef.current, isLocal: false });
+        return;
+      }
+      const t = state.track_window.current_track;
+      update({
+        track: t ? api.toTrackInfo(t) : null,
+        positionMs: state.position,
+        paused: state.paused,
+        receivedAt: performance.now(),
+        deviceName: 'Deze browser',
+        isLocal: true,
+      });
+    },
+    [update],
+  );
+
+  // Web Playback SDK: maakt van deze browser een Spotify-apparaat (vereist Premium).
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+
+    const init = () => {
+      if (cancelled || playerRef.current) return;
+      const player = new window.Spotify.Player({
+        name: 'Lyrics Party 🎤',
+        getOAuthToken: (cb) => {
+          getAccessToken().then((t) => t && cb(t));
+        },
+        volume: 0.8,
+      });
+      player.addListener('ready', ({ device_id }) => {
+        deviceIdRef.current = device_id;
+        setDeviceId(device_id);
+      });
+      player.addListener('not_ready', () => {
+        deviceIdRef.current = null;
+        setDeviceId(null);
+      });
+      player.addListener('player_state_changed', handleSdkState);
+      player.addListener('initialization_error', ({ message }) =>
+        setError(`Browser-speler kon niet starten: ${message}`),
+      );
+      player.addListener('authentication_error', () => setError('Spotify-login verlopen, log opnieuw in.'));
+      player.addListener('account_error', () => setError('Afspelen in de browser vereist Spotify Premium.'));
+      player.addListener('autoplay_failed', () => setError('Autoplay geblokkeerd door de browser: klik op play.'));
+      player.connect();
+      playerRef.current = player;
+    };
+
+    if (window.Spotify) {
+      init();
+    } else {
+      window.onSpotifyWebPlaybackSDKReady = init;
+      if (!document.getElementById('spotify-sdk')) {
+        const script = document.createElement('script');
+        script.id = 'spotify-sdk';
+        script.src = 'https://sdk.scdn.co/spotify-player.js';
+        script.async = true;
+        document.body.appendChild(script);
+      }
+    }
+
+    return () => {
+      cancelled = true;
+      playerRef.current?.disconnect();
+      playerRef.current = null;
+    };
+  }, [enabled, handleSdkState]);
+
+  // Lokaal: elke seconde de exacte positie ophalen om drift te corrigeren.
+  useEffect(() => {
+    if (!enabled) return;
+    const id = window.setInterval(() => {
+      if (!snapRef.current.isLocal) return;
+      playerRef.current?.getCurrentState().then(handleSdkState);
+    }, LOCAL_SYNC_MS);
+    return () => window.clearInterval(id);
+  }, [enabled, handleSdkState]);
+
+  // Ander apparaat (telefoon, desktop-app): de Web API pollen.
+  useEffect(() => {
+    if (!enabled) return;
+    let stopped = false;
+    let timer: number | undefined;
+
+    const poll = async () => {
+      window.clearTimeout(timer);
+      if (stopped) return;
+      if (!snapRef.current.isLocal) {
+        try {
+          const started = performance.now();
+          const state = await api.getPlayerState();
+          const receivedAt = (started + performance.now()) / 2;
+          if (stopped) return;
+          if (!state) {
+            update({ ...EMPTY, receivedAt });
+          } else {
+            update({
+              track: state.item && state.currently_playing_type === 'track' ? api.toTrackInfo(state.item) : null,
+              positionMs: state.progress_ms ?? 0,
+              paused: !state.is_playing,
+              receivedAt,
+              deviceName: state.device.name,
+              isLocal: false,
+            });
+          }
+        } catch (err) {
+          setError(describeError(err));
+        }
+      }
+      if (!stopped) timer = window.setTimeout(poll, POLL_MS);
+    };
+
+    pollNowRef.current = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(poll, 350);
+    };
+    poll();
+    return () => {
+      stopped = true;
+      window.clearTimeout(timer);
+    };
+  }, [enabled, update]);
+
+  const controls = useMemo(() => {
+    const run = async (fn: () => Promise<unknown>) => {
+      try {
+        setError(null);
+        await fn();
+      } catch (err) {
+        setError(describeError(err));
+      } finally {
+        pollNowRef.current();
+      }
+    };
+    const local = () => snapRef.current.isLocal && playerRef.current;
+
+    return {
+      togglePlay: () =>
+        run(async () => {
+          const s = snapRef.current;
+          // Optimistisch bijwerken zodat de animaties direct reageren.
+          update({ ...s, paused: !s.paused, positionMs: predict(s), receivedAt: performance.now() });
+          if (local()) await playerRef.current!.togglePlay();
+          else if (s.paused) await api.resume();
+          else await api.pause();
+        }),
+      next: () => run(() => (local() ? playerRef.current!.nextTrack() : api.next())),
+      previous: () => run(() => (local() ? playerRef.current!.previousTrack() : api.previous())),
+      seek: (ms: number) => run(() => (local() ? playerRef.current!.seek(ms) : api.seek(ms))),
+      playHere: () =>
+        run(async () => {
+          await playerRef.current?.activateElement();
+          if (!deviceIdRef.current) throw new Error('Browser-speler is nog niet klaar, probeer zo opnieuw.');
+          await api.transferPlayback(deviceIdRef.current, true);
+        }),
+    };
+  }, [update]);
+
+  return { snapshot, getPosition, deviceReady: deviceId !== null, controls, error, clearError: () => setError(null) };
+}

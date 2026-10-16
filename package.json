@@ -1,0 +1,35 @@
+{
+  "name": "lyrics-app",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/boelederuyter-lang/lyrics-app.git"
+  },
+  "bugs": {
+    "url": "https://github.com/boelederuyter-lang/lyrics-app/issues"
+  },
+  "homepage": "https://github.com/boelederuyter-lang/lyrics-app#readme",
+  "dependencies": {
+    "motion": "^14.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/spotify-web-playback-sdk": "^0.1.19",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
+  },
+  "private": true,
+  "type": "module"
+}
