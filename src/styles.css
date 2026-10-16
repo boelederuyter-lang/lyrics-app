@@ -447,7 +447,7 @@ code {
   transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
   padding: 6px;
   border: 1px solid var(--line);
-  background: var(--glass);
+  background: rgb(10 10 10 / 0.94);
 }
 
 .tools.open {
@@ -464,6 +464,10 @@ code {
   white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+.chip.plain {
+  text-transform: none;
 }
 
 .sep {
@@ -787,6 +791,98 @@ code {
   text-align: center;
 }
 
+/* ---------------------------------------------------------------- tik-sync */
+
+.tap-sync {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 0.9);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tap-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  pointer-events: none;
+  animation: tap-flash 0.25s ease-out both;
+}
+
+@keyframes tap-flash {
+  from {
+    opacity: 0.2;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.tap-sync-card {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  max-width: 900px;
+  text-align: center;
+}
+
+.tap-sync-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--grey);
+}
+
+.tap-sync-prev {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
+
+.tap-sync-line {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(2.2rem, 8vw, 4.8rem);
+  line-height: 1;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.tap-sync-dots {
+  display: flex;
+  gap: 12px;
+  margin-top: 0.5rem;
+}
+
+.tap-sync-dots span {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--dim);
+}
+
+.tap-sync-dots span.on {
+  background: #fff;
+  border-color: #fff;
+}
+
+.tap-sync-cancel {
+  position: absolute;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+}
+
 /* ---------------------------------------------------------------- telefoon */
 
 @media (max-width: 720px) {
@@ -803,6 +899,9 @@ code {
     position: relative;
     display: flex;
     justify-content: center;
+  }
+  .tools .sep {
+    display: none;
   }
   .tools {
     position: absolute;

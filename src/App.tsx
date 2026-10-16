@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_GRID, estimateBeatGrid, gridFromTaps, type BeatGrid } from './beat/tempo';
 import { Hud } from './components/Hud';
+import { TapSync } from './components/TapSync';
 import { DEMO_LYRICS, DEMO_TRACK, isDemo, useDemoPlayback } from './demo';
 import { primeLyrics } from './lyrics/lrclib';
 import { useLyrics } from './lyrics/useLyrics';
 import { clientIdFromBuild, completeLoginFromUrl, getClientId, isLoggedIn, login, logout, REDIRECT_URI, setClientId } from './spotify/auth';
 import { browserPlaybackSupported, usePlayback } from './spotify/usePlayback';
+import { delayFor, formatDelay, withDelay, type SyncStore } from './sync/delay';
 import { Background } from './visual/Background';
 import { Bars, LyricsStage, STAGE_STYLES, TitleCard, type StageStyle } from './visual/LyricsStage';
 import { useStageClock } from './visual/useStageClock';
@@ -146,19 +148,40 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
   const lines = lyrics?.kind === 'synced' ? lyrics.lines : null;
 
   const [style, setStyle] = usePersisted<StageStyle>('lyrics.style', 'kinetic');
-  const [offsetMs, setOffsetMs] = usePersisted('lyrics.offset', 0);
   const [bpmFactor, setBpmFactor] = useState(1);
   const [tapGrid, setTapGrid] = useState<BeatGrid | null>(null);
   const taps = useRef<number[]>([]);
 
-  const getTime = useCallback(() => getPosition() + offsetMs, [getPosition, offsetMs]);
+  // Sync: vertraging van de lyrics, per nummer onthouden (positief = lyrics later).
+  const trackId = track?.id;
+  const [syncStore, setSyncStore] = usePersisted<SyncStore>('lyrics.sync', {});
+  const delayMs = delayFor(syncStore, trackId);
+  const setDelay = useCallback(
+    (ms: number | ((current: number) => number)) => {
+      if (!trackId) return;
+      setSyncStore((store) => withDelay(store, trackId, typeof ms === 'function' ? ms(delayFor(store, trackId)) : ms));
+    },
+    [trackId, setSyncStore],
+  );
+  const nudgeDelay = useCallback((delta: number) => setDelay((d) => d + delta), [setDelay]);
+  const [syncing, setSyncing] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  // Nieuw nummer: tap-tempo en tempofactor resetten.
+  useEffect(() => {
+    if (!notice) return;
+    const id = window.setTimeout(() => setNotice(null), 2500);
+    return () => window.clearTimeout(id);
+  }, [notice]);
+
+  const getTime = useCallback(() => getPosition() - delayMs, [getPosition, delayMs]);
+
+  // Nieuw nummer: tap-tempo, tempofactor en tik-sync resetten.
   useEffect(() => {
     setTapGrid(null);
     setBpmFactor(1);
+    setSyncing(false);
     taps.current = [];
-  }, [track?.id]);
+  }, [trackId]);
 
   const estimated = useMemo(() => {
     if (!lines) return DEFAULT_GRID;
@@ -217,7 +240,7 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (syncing || e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
       const styleIndex = Number(e.key) - 1;
       if (STAGE_STYLES[styleIndex]) return setStyle(STAGE_STYLES[styleIndex].id);
       switch (e.key) {
@@ -244,16 +267,19 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
           toggleFullscreen();
           break;
         case '[':
-          setOffsetMs((o) => o - 100);
+          nudgeDelay(-100);
           break;
         case ']':
-          setOffsetMs((o) => o + 100);
+          nudgeDelay(100);
+          break;
+        case 's':
+          if (lines) setSyncing(true);
           break;
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [controls, getPosition, onTap, setOffsetMs, setStyle, toggleFullscreen]);
+  }, [controls, getPosition, onTap, nudgeDelay, setStyle, toggleFullscreen, syncing, lines]);
 
   const lyricsNote =
     !track
@@ -299,7 +325,7 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
       )}
 
       <Hud
-        visible={hudVisible}
+        visible={hudVisible && !syncing}
         snapshot={snapshot}
         deviceReady={deviceReady}
         style={style}
@@ -308,8 +334,9 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
         bpmFactor={bpmFactor}
         onBpmFactor={setBpmFactor}
         onTap={onTap}
-        offsetMs={offsetMs}
-        onOffset={setOffsetMs}
+        delayMs={delayMs}
+        onNudgeDelay={nudgeDelay}
+        onTapSync={lines ? () => setSyncing(true) : null}
         lyricsNote={lyricsNote}
         controls={controls}
         onFullscreen={document.fullscreenEnabled ? toggleFullscreen : null}
@@ -317,10 +344,31 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
         logoutLabel={demo ? 'Demo sluiten' : 'Uitloggen'}
       />
 
-      {error && (
+      {syncing && lines && (
+        <TapSync
+          lines={lines}
+          getPosition={getPosition}
+          delayMs={delayMs}
+          paused={snapshot.paused}
+          onDone={(ms) => {
+            setDelay(ms);
+            setSyncing(false);
+            setNotice(`Gesynct: lyrics ${formatDelay(ms)}`);
+          }}
+          onCancel={() => setSyncing(false)}
+        />
+      )}
+
+      {error ? (
         <div className="toast" role="alert" onClick={clearError}>
           {error}
         </div>
+      ) : (
+        notice && (
+          <div className="toast" role="status">
+            {notice}
+          </div>
+        )
       )}
     </main>
   );

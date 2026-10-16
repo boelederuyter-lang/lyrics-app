@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getAccessToken } from './auth';
 import * as api from './api';
 import type { TrackInfo } from './api';
+import { createSlew, NO_SLEW, predictPosition, slewOffset, type Slew } from './clock';
 
 export interface PlaybackSnapshot {
   track: TrackInfo | null;
@@ -32,13 +33,23 @@ export const browserPlaybackSupported =
   !(navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
 
 const POLL_MS = 2500;
+/** Na een nieuw nummer snel nog eens meten: de eerste positie na een wissel is vaak onnauwkeurig. */
+const TRACK_CHANGE_POLL_MS = 1000;
+/** Zo kort na het verwachte einde van een nummer vragen we het volgende op. */
+const END_OF_TRACK_MARGIN_MS = 250;
 const LOCAL_SYNC_MS = 1000;
-/** Kleine afwijkingen negeren we, anders springen de animaties bij elke poll. */
-const DRIFT_TOLERANCE_MS = 180;
+/** Kleinere verschillen zijn meetruis. */
+const DRIFT_TOLERANCE_MS = 40;
 
 function predict(s: PlaybackSnapshot, now = performance.now()): number {
   if (!s.track) return 0;
-  const pos = s.paused ? s.positionMs : s.positionMs + (now - s.receivedAt);
+  return predictPosition({ positionMs: s.positionMs, at: s.receivedAt, paused: s.paused, durationMs: s.track.durationMs }, now);
+}
+
+/** De positie die we tonen: voorspelling plus een eventuele lopende bijsturing. */
+function shown(s: PlaybackSnapshot, slew: Slew, now = performance.now()): number {
+  if (!s.track) return 0;
+  const pos = predict(s, now) + (s.paused ? 0 : slewOffset(slew, now));
   return Math.min(Math.max(pos, 0), s.track.durationMs || Infinity);
 }
 
@@ -55,6 +66,7 @@ function describeError(err: unknown): string {
 export function usePlayback(enabled: boolean) {
   const [snapshot, setSnapshot] = useState<PlaybackSnapshot>(EMPTY);
   const snapRef = useRef<PlaybackSnapshot>(EMPTY);
+  const slewRef = useRef<Slew>(NO_SLEW);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const deviceIdRef = useRef<string | null>(null);
   const playerRef = useRef<Spotify.Player | null>(null);
@@ -63,16 +75,23 @@ export function usePlayback(enabled: boolean) {
 
   const update = useCallback((next: PlaybackSnapshot) => {
     const prev = snapRef.current;
-    const sameTrack = prev.track?.id === next.track?.id;
-    if (sameTrack && prev.paused === next.paused && prev.isLocal === next.isLocal && !next.paused) {
-      const drift = Math.abs(predict(prev, next.receivedAt) - next.positionMs);
-      if (drift < DRIFT_TOLERANCE_MS) return;
+    const now = performance.now();
+    const continuous =
+      !!next.track && prev.track?.id === next.track.id && prev.isLocal === next.isLocal && !prev.paused && !next.paused;
+    if (continuous) {
+      // Zelfde nummer, speelt door: niet springen maar geleidelijk bijsturen.
+      const was = shown(prev, slewRef.current, now);
+      const measured = predict(next, now);
+      if (Math.abs(was - measured) < DRIFT_TOLERANCE_MS && prev.deviceName === next.deviceName) return;
+      slewRef.current = createSlew(was, measured, now);
+    } else {
+      slewRef.current = NO_SLEW;
     }
     snapRef.current = next;
     setSnapshot(next);
   }, []);
 
-  const getPosition = useCallback(() => predict(snapRef.current), []);
+  const getPosition = useCallback(() => shown(snapRef.current, slewRef.current), []);
 
   const handleSdkState = useCallback(
     (state: Spotify.PlaybackState | null) => {
@@ -165,7 +184,9 @@ export function usePlayback(enabled: boolean) {
     const poll = async () => {
       window.clearTimeout(timer);
       if (stopped) return;
+      let delay = POLL_MS;
       if (!snapRef.current.isLocal) {
+        const previousTrack = snapRef.current.track?.id;
         try {
           const started = performance.now();
           const state = await api.getPlayerState();
@@ -186,8 +207,15 @@ export function usePlayback(enabled: boolean) {
         } catch (err) {
           setError(describeError(err));
         }
+        const s = snapRef.current;
+        if (s.track?.id !== previousTrack) delay = TRACK_CHANGE_POLL_MS;
+        // Vlak na het verwachte einde opnieuw vragen, zodat het volgende nummer meteen verschijnt.
+        if (s.track && !s.paused && !s.isLocal) {
+          const remaining = s.track.durationMs - predict(s);
+          if (remaining > 0) delay = Math.min(delay, remaining + END_OF_TRACK_MARGIN_MS);
+        }
       }
-      if (!stopped) timer = window.setTimeout(poll, POLL_MS);
+      if (!stopped) timer = window.setTimeout(poll, delay);
     };
 
     pollNowRef.current = () => {
@@ -225,7 +253,7 @@ export function usePlayback(enabled: boolean) {
         run(async () => {
           const s = snapRef.current;
           // Optimistisch bijwerken zodat de animaties direct reageren.
-          update({ ...s, paused: !s.paused, positionMs: predict(s), receivedAt: performance.now() });
+          update({ ...s, paused: !s.paused, positionMs: shown(s, slewRef.current), receivedAt: performance.now() });
           if (local()) await playerRef.current!.togglePlay();
           else if (s.paused) await api.resume();
           else await api.pause();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findLineIndex, findNextLineIndex, findWordIndex, parseLrc } from './parseLrc';
+import { findLineIndex, findNextLineIndex, findWordIndex, parseLrc, syllables } from './parseLrc';
 import { cleanTitle } from './lrclib';
 
 describe('parseLrc', () => {
@@ -50,6 +50,28 @@ describe('parseLrc', () => {
     expect(starts[0]).toBe(1000);
     expect([...starts].sort((a, b) => a - b)).toEqual(starts);
     expect(line.words[3].end).toBeLessThan(5000);
+  });
+});
+
+describe('woord-timing schatten', () => {
+  it('telt lettergrepen in Nederlands en Engels', () => {
+    expect(syllables('straat')).toBe(1);
+    expect(syllables('eindelijk')).toBe(3);
+    expect(syllables('geloven')).toBe(3);
+    expect(syllables("m'n")).toBe(1);
+    expect(syllables('beautiful')).toBe(3);
+    expect(syllables('2024')).toBe(1);
+  });
+
+  it('geeft woorden met meer lettergrepen meer tijd', () => {
+    const [line] = parseLrc('[00:00.00]ik eindelijk\n[00:10.00]x');
+    const [ik, eindelijk] = line.words;
+    expect(eindelijk.end - eindelijk.start).toBeGreaterThan(2 * (ik.end - ik.start));
+  });
+
+  it('propt een snelle rapregel binnen de tijd tot de volgende regel', () => {
+    const [line] = parseLrc('[00:00.00]van niks naar iets van de kelder naar boven\n[00:02.00]x');
+    expect(line.words[line.words.length - 1].end).toBeLessThanOrEqual(2000);
   });
 });
 

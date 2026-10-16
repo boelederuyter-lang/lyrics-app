@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { BeatGrid } from '../beat/tempo';
+import { formatDelay } from '../sync/delay';
 import type { PlaybackSnapshot } from '../spotify/usePlayback';
 import { STAGE_STYLES, type StageStyle } from '../visual/LyricsStage';
 
@@ -13,8 +14,9 @@ interface Props {
   bpmFactor: number;
   onBpmFactor: (f: number) => void;
   onTap: () => void;
-  offsetMs: number;
-  onOffset: (ms: number) => void;
+  delayMs: number;
+  onNudgeDelay: (deltaMs: number) => void;
+  onTapSync: (() => void) | null;
   lyricsNote: string | null;
   controls: {
     togglePlay: () => void;
@@ -58,28 +60,32 @@ export function Hud(p: Props) {
 
       <footer className="hud-bottom">
         <div className={`hud-group tools ${toolsOpen ? 'open' : ''}`}>
+          {p.onTapSync && (
+            <button className="ghost" onClick={p.onTapSync} title="Tik drie keer als een regel begint (S)">
+              Tik-sync
+            </button>
+          )}
+          <button className="ghost" onClick={() => p.onNudgeDelay(-100)} title="Lyrics eerder ([)" aria-label="Lyrics eerder">
+            −
+          </button>
+          <span className="chip plain" title="Vertraging van de lyrics voor dit nummer">
+            sync {formatDelay(p.delayMs)}
+          </span>
+          <button className="ghost" onClick={() => p.onNudgeDelay(100)} title="Lyrics later (])" aria-label="Lyrics later">
+            +
+          </button>
+          <span className="sep" />
           <span className="chip" title={p.grid.source === 'lyrics' ? `Geschat uit lyrics (${(p.grid.confidence * 100).toFixed(0)}% zeker)` : ''}>
             {bpmLabel}
           </span>
           <button className="ghost" onClick={p.onTap} title="Tik mee op de beat (T)">
-            Tap
+            Tap beat
           </button>
           <button className={`ghost ${p.bpmFactor === 0.5 ? 'on' : ''}`} onClick={() => p.onBpmFactor(p.bpmFactor === 0.5 ? 1 : 0.5)} title="Half tempo">
             ½
           </button>
           <button className={`ghost ${p.bpmFactor === 2 ? 'on' : ''}`} onClick={() => p.onBpmFactor(p.bpmFactor === 2 ? 1 : 2)} title="Dubbel tempo">
             ×2
-          </button>
-          <span className="sep" />
-          <button className="ghost" onClick={() => p.onOffset(p.offsetMs - 100)} title="Lyrics eerder ([)">
-            −
-          </button>
-          <span className="chip" title="Sync-correctie">
-            sync {p.offsetMs >= 0 ? '+' : ''}
-            {(p.offsetMs / 1000).toFixed(1)}s
-          </span>
-          <button className="ghost" onClick={() => p.onOffset(p.offsetMs + 100)} title="Lyrics later (])">
-            +
           </button>
           <span className="sep" />
           <button className="ghost" onClick={p.onLogout}>

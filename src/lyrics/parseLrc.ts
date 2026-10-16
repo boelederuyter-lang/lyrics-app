@@ -16,14 +16,28 @@ function normalize(text: string): string {
   return text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
-/** Schat woord-timing door de zangduur te verdelen naar woordlengte. */
+const VOWEL_GROUPS = /[aeiouyàáâäãåèéêëìíîïòóôöõùúûüýÿæœø]+/gu;
+/** Gemiddelde duur van een gezongen/gerapte lettergreep. */
+const MS_PER_SYLLABLE = 210;
+/** Kleine extra ruimte per woord (overgang naar het volgende woord). */
+const WORD_GAP_WEIGHT = 0.3;
+
+/** Ruwe schatting van het aantal lettergrepen: het aantal klinkergroepen ("ei-nde-lijk" = 3). */
+export function syllables(word: string): number {
+  return Math.max(1, word.toLowerCase().match(VOWEL_GROUPS)?.length ?? 0);
+}
+
+/**
+ * Schat woord-timing als de bron alleen het begin van de regel geeft: de zangtijd wordt verdeeld
+ * naar het aantal lettergrepen, want die bepalen hoe lang een woord duurt (niet het aantal letters).
+ */
 function estimateWords(text: string, start: number, limit: number): LyricWord[] {
   const tokens = text.split(/\s+/).filter(Boolean);
   if (!tokens.length) return [];
-  const weights = tokens.map((t) => t.length + 2);
+  const weights = tokens.map((t) => syllables(t) + WORD_GAP_WEIGHT);
   const total = weights.reduce((a, b) => a + b, 0);
   const available = Math.max(400, limit - start);
-  const sung = Math.min(Math.max(total * 70, 500), available * 0.92);
+  const sung = Math.min(Math.max(total * MS_PER_SYLLABLE, 500), available * 0.92);
 
   let cursor = start;
   return tokens.map((token, i) => {
