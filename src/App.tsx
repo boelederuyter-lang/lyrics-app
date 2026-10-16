@@ -4,7 +4,7 @@ import { Hud } from './components/Hud';
 import { DEMO_LYRICS, DEMO_TRACK, isDemo, useDemoPlayback } from './demo';
 import { primeLyrics } from './lyrics/lrclib';
 import { useLyrics } from './lyrics/useLyrics';
-import { completeLoginFromUrl, getClientId, isLoggedIn, login, logout, REDIRECT_URI, setClientId } from './spotify/auth';
+import { clientIdFromBuild, completeLoginFromUrl, getClientId, isLoggedIn, login, logout, REDIRECT_URI, setClientId } from './spotify/auth';
 import { browserPlaybackSupported, usePlayback } from './spotify/usePlayback';
 import { Background } from './visual/Background';
 import { Bars, LyricsStage, STAGE_STYLES, TitleCard, type StageStyle } from './visual/LyricsStage';
@@ -66,9 +66,22 @@ function Login({ error }: { error: string | null }) {
       <div className="login-card">
         <TitleCard title="Lyrics" subtitle="Spotify lyrics, live op de beat" />
         {clientId ? (
-          <button className="accent big" onClick={() => login()}>
-            Verbind met Spotify
-          </button>
+          <div className="connect">
+            <button className="accent big" onClick={() => login()}>
+              Verbind met Spotify
+            </button>
+            {!clientIdFromBuild && (
+              <button
+                className="text-link"
+                onClick={() => {
+                  setClientId('');
+                  setClientIdState('');
+                }}
+              >
+                Andere Client ID
+              </button>
+            )}
+          </div>
         ) : (
           <div className="setup">
             <p>Eenmalig instellen:</p>

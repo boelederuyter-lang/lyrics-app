@@ -3,6 +3,9 @@
 const CLIENT_ID_KEY = 'lyrics.client-id';
 const ENV_CLIENT_ID = (import.meta.env.VITE_SPOTIFY_CLIENT_ID ?? '').trim();
 
+/** true als de Client ID in de build zit; dan valt er in de app niks in te stellen. */
+export const clientIdFromBuild = ENV_CLIENT_ID.length > 0;
+
 /** Client ID uit de build (.env / GitHub-variabele), anders zelf ingevuld in de app. */
 export function getClientId(): string {
   return ENV_CLIENT_ID || (localStorage.getItem(CLIENT_ID_KEY) ?? '').trim();

@@ -72,6 +72,7 @@ code {
   height: 120%;
   object-fit: cover;
   filter: grayscale(1) contrast(1.25) brightness(0.3) blur(26px);
+  will-change: transform;
   transform: scale(calc(1.04 + var(--beat-soft) * 0.035));
   animation: fade-in 1.2s ease-out both;
 }
@@ -216,6 +217,25 @@ code {
 
 .client-id input:focus {
   outline: 1px solid var(--white);
+}
+
+.connect {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+}
+
+.text-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--grey);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .demo-link {
