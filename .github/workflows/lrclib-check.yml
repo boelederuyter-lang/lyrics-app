@@ -8,15 +8,11 @@ jobs:
     steps:
       - name: Zoek nummers op in LRCLIB
         run: |
-          show() { jq -r 'if type=="array" then .[] else . end | "\(.id) | \(.trackName) | \(.artistName) | \(.albumName) | \(.duration)s | synced=\(.syncedLyrics != null) | plain=\(.plainLyrics != null)"' | head -15; }
-          for q in "Broke Out|J. Cole" "Rein Me In|Sam Fender" "Rein Me In (with Olivia Dean)|Sam Fender"; do
-            t="${q%%|*}"; a="${q##*|}"
-            echo "=== search track_name='$t' artist_name='$a'"
-            curl -sS -G https://lrclib.net/api/search --data-urlencode "track_name=$t" --data-urlencode "artist_name=$a" -A "lyrics-app check" | show
-            echo "=== search q='$t $a'"
-            curl -sS -G https://lrclib.net/api/search --data-urlencode "q=$t $a" -A "lyrics-app check" | show
-          done
-          echo "=== q='Broke Out'"
-          curl -sS -G https://lrclib.net/api/search --data-urlencode "q=Broke Out" -A "lyrics-app check" | show
-          echo "=== CORS-headers"
-          curl -sSI -H "Origin: https://boelederuyter-lang.github.io" "https://lrclib.net/api/search?q=test" | grep -i "access-control" || echo "geen"
+          raw() { echo "--- $1"; curl -sS -G "https://lrclib.net/api/$1" "${@:2}" -A "lyrics-app check" -w '\nHTTP %{http_code}\n' | cut -c1-300; }
+          raw search --data-urlencode "track_name=Broke Out" --data-urlencode "artist_name=J. Cole"
+          raw search --data-urlencode "q=Broke Out Cole"
+          raw search --data-urlencode "q=J. Cole Fall Off"
+          raw search --data-urlencode "artist_name=J. Cole" --data-urlencode "album_name=The Fall-Off"
+          raw get --data-urlencode "track_name=Rein Me In (with Olivia Dean)" --data-urlencode "artist_name=Sam Fender" --data-urlencode "album_name=People Watching (Deluxe Edition)" --data-urlencode "duration=340"
+          raw get --data-urlencode "track_name=Rein Me In (with Olivia Dean)" --data-urlencode "artist_name=Sam Fender" --data-urlencode "album_name=Rein Me In (with Olivia Dean)" --data-urlencode "duration=339"
+          raw get --data-urlencode "track_name=Rein Me In" --data-urlencode "artist_name=Sam Fender" --data-urlencode "album_name=People Watching (Deluxe Edition)" --data-urlencode "duration=339"
