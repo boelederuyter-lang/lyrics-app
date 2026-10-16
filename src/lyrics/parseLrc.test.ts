@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { findLineIndex, findNextLineIndex, findWordIndex, parseLrc, syllables } from './parseLrc';
-import { cleanTitle } from './lrclib';
+import { cleanTitle } from './match';
 
 describe('parseLrc', () => {
   it('leest regels, sorteert ze en slaat metadata en lege regels over', () => {

@@ -341,6 +341,13 @@ code {
   text-align: center;
 }
 
+.explain.small {
+  max-width: 24rem;
+  margin-top: -1rem;
+  font-size: 0.85rem;
+  color: rgb(255 255 255 / 0.6);
+}
+
 .button-row {
   display: flex;
   flex-wrap: wrap;

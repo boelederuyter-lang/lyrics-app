@@ -86,3 +86,5 @@ Client ID kan lokaal ook in `.env` (zie `.env.example`).
 - Spotify levert zelf geen lyrics via de API, en de beat-analyse is niet meer beschikbaar voor nieuwe apps. Daarom LRCLIB en een geschat beat-grid.
 - Als je met de telefoon in de Spotify-app afspeelt, vraagt de app elke paar seconden de positie op en rekent daartussen zelf door. Kleine afwijkingen worden geleidelijk bijgestuurd (geen sprongen terug), en vlak na het einde van een nummer wordt meteen het volgende opgehaald.
 - Woord-timing wordt geschat op lettergrepen als de lyrics-bron alleen het begin van elke regel geeft.
+- LRCLIB wordt door vrijwilligers gevuld. Heel nieuwe nummers staan er soms nog niet in (dan: **Geen lyrics gevonden**). Titels zijn er rommelig ("Artiest - Titel (Official Audio)", meerdere artiesten); Lyrics zoekt daarom op een paar manieren en kiest de beste treffer op titel, artiest en lengte.
+- Is LRCLIB even overbelast, dan probeert Lyrics het vanzelf opnieuw (**Lyrics-server even druk**) en kun je zelf op **Opnieuw proberen** tikken.

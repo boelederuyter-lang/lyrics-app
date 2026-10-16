@@ -66,7 +66,7 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
     ? demoPlayback
     : spotify;
   const track = snapshot.track;
-  const lyricsState = useLyrics(track);
+  const { state: lyricsState, retry: retryLyrics } = useLyrics(track);
   const lyrics = lyricsState.status === 'ready' ? lyricsState.lyrics : null;
   const lines = lyrics?.kind === 'synced' ? lyrics.lines : null;
 
@@ -233,7 +233,7 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
         : lyricsState.status === 'missing'
           ? 'Geen lyrics gevonden'
           : lyricsState.status === 'error'
-            ? lyricsState.message
+            ? 'Lyrics-server even druk'
             : lyrics?.kind === 'instrumental'
               ? 'Instrumentaal'
               : lyrics?.kind === 'plain'
@@ -290,13 +290,28 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
         <div className="stage">
           <div className="idle">
             <TitleCard key={track.id} title={track.name} subtitle={track.artists.join(', ')} />
-            <span className={`label ${lyricsState.status === 'loading' ? 'pulse' : ''}`}>
-              {lyricsState.status === 'loading'
-                ? 'Lyrics zoeken'
-                : lyrics?.kind === 'instrumental'
-                  ? 'Instrumentaal'
-                  : 'Geen lyrics gevonden voor dit nummer'}
-            </span>
+            {lyricsState.status === 'error' ? (
+              <>
+                <span className={`label ${lyricsState.retrying ? 'pulse' : ''}`}>
+                  {lyricsState.retrying ? 'Lyrics-server even druk · zo opnieuw' : 'Lyrics-server even niet bereikbaar'}
+                </span>
+                <button className="ghost" onClick={retryLyrics}>
+                  Opnieuw proberen
+                </button>
+              </>
+            ) : lyricsState.status === 'missing' ? (
+              <>
+                <span className="label">Geen lyrics gevonden</span>
+                <p className="explain small">
+                  Dit nummer staat nog niet in de lyrics-database (LRCLIB). Nieuwe nummers komen er meestal binnen een paar
+                  weken bij.
+                </p>
+              </>
+            ) : (
+              <span className={`label ${lyricsState.status === 'loading' ? 'pulse' : ''}`}>
+                {lyricsState.status === 'loading' ? 'Lyrics zoeken' : 'Instrumentaal'}
+              </span>
+            )}
             {lyricsState.status !== 'loading' && <Bars />}
           </div>
         </div>
