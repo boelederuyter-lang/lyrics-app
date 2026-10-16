@@ -8,7 +8,7 @@ import { useLyrics } from './lyrics/useLyrics';
 import { clientIdFromBuild, completeLoginFromUrl, getClientId, isLoggedIn, login, logout, REDIRECT_URI, setClientId } from './spotify/auth';
 import { browserPlaybackSupported, usePlayback } from './spotify/usePlayback';
 import { delayFor, formatDelay, withDelay, type SyncStore } from './sync/delay';
-import { Background } from './visual/Background';
+import { ART_MODES, Background, type ArtMode } from './visual/Background';
 import { Bars, LyricsStage, STAGE_STYLES, TitleCard, type StageStyle } from './visual/LyricsStage';
 import { useStageClock } from './visual/useStageClock';
 
@@ -148,6 +148,11 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
   const lines = lyrics?.kind === 'synced' ? lyrics.lines : null;
 
   const [style, setStyle] = usePersisted<StageStyle>('lyrics.style', 'kinetic');
+  const [artMode, setArtMode] = usePersisted<ArtMode>('lyrics.art', 'color');
+  const cycleArtMode = useCallback(
+    () => setArtMode((m) => ART_MODES[(ART_MODES.findIndex((a) => a.id === m) + 1) % ART_MODES.length].id),
+    [setArtMode],
+  );
   const [bpmFactor, setBpmFactor] = useState(1);
   const [tapGrid, setTapGrid] = useState<BeatGrid | null>(null);
   const taps = useRef<number[]>([]);
@@ -196,6 +201,8 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
   }, [tapGrid, estimated, bpmFactor]);
 
   const cursor = useStageClock(lines, getTime, grid, snapshot.paused);
+  // Instrumentaal stuk midden in het nummer (geen tekst in beeld): dan mag de hoes helder.
+  const coverMoment = !!lines && style !== 'karaoke' && cursor.line < 0 && cursor.next !== 0;
 
   useWakeLock();
 
@@ -275,11 +282,14 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
         case 's':
           if (lines) setSyncing(true);
           break;
+        case 'h':
+          cycleArtMode();
+          break;
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [controls, getPosition, onTap, nudgeDelay, setStyle, toggleFullscreen, syncing, lines]);
+  }, [controls, getPosition, onTap, nudgeDelay, setStyle, toggleFullscreen, syncing, lines, cycleArtMode]);
 
   const lyricsNote =
     !track
@@ -297,8 +307,8 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
                 : null;
 
   return (
-    <main className={`player ${hudVisible ? '' : 'cursor-hidden'}`}>
-      <Background art={track?.albumArt ?? null} lineKey={cursor.line} />
+    <main className={`player ${hudVisible ? '' : 'cursor-hidden'}`} data-art={artMode}>
+      <Background art={track?.albumArt ?? null} lineKey={cursor.line} mode={artMode} dim={!coverMoment} />
 
       {!track ? (
         <div className="stage">
@@ -342,6 +352,8 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
         onFullscreen={document.fullscreenEnabled ? toggleFullscreen : null}
         onLogout={onLogout}
         logoutLabel={demo ? 'Demo sluiten' : 'Uitloggen'}
+        artLabel={ART_MODES.find((a) => a.id === artMode)?.label ?? ''}
+        onCycleArt={cycleArtMode}
       />
 
       {syncing && lines && (

@@ -11,7 +11,8 @@ Verbind met Spotify en zie de lyrics van wat je luistert als een strakke zwart-w
 - **3 stijlen**: `Hard` (één regel groot, woorden slaan erin), `Flow` (meekleurende regels), `Stack` (cover-achtige blokletters).
 - **Op de beat**: tempo geschat uit de lyric-timing. Klopt het niet? Tik mee met **Tap beat**, of gebruik ½ / ×2 (onder de instellingenknop).
 - **Sync per nummer**: met **Tik-sync** tik je drie keer als een regel begint; de app rekent de vertraging uit en onthoudt die per nummer. Nieuwe nummers starten met je gebruikelijke vertraging (handig met Bluetooth-oortjes).
-- Grijstinten: albumhoes zwart-wit en wazig op de achtergrond, filmkorrel, flits bij elke nieuwe regel.
+- **Albumhoes op de achtergrond**: scherp in het midden met een wazige versie eromheen. Donkerder als er tekst staat, helder tijdens instrumentale stukken. Te wisselen tussen kleur, zwart-wit en alleen vaag (instellingen → *Hoes*).
+- Grijstinten voor de tekst, filmkorrel, flits bij elke nieuwe regel.
 - **Web-app voor je telefoon**: zet hem op je beginscherm, dan opent hij fullscreen en blijft het scherm aan.
 - **Demo** zonder Spotify: open de app met `?demo`.
 
@@ -58,6 +59,7 @@ Client ID kan lokaal ook in `.env` (zie `.env.example`).
 | `1` `2` `3` | Hard / Flow / Stack |
 | `T` | tap tempo |
 | `S` | tik-sync (daarna `Spatie` als de regel begint, `Esc` om te stoppen) |
+| `H` | achtergrond: hoes in kleur / zwart-wit / vaag |
 | `[` / `]` | lyrics 0,1 s eerder / later |
 | `F` | fullscreen |
 

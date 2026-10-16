@@ -8,10 +8,24 @@ import type { PlaybackSnapshot } from './spotify/usePlayback';
 
 export const isDemo = new URLSearchParams(window.location.search).has('demo');
 
+// Zelfgemaakte hoes: stad in de avondzon.
 const COVER =
   'data:image/svg+xml,' +
   encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#111"/><rect x="8" y="30" width="48" height="10" fill="#eee"/><circle cx="46" cy="18" r="8" fill="#777"/></svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+      <defs>
+        <linearGradient id="sky" x2="0" y2="1">
+          <stop offset="0" stop-color="#120c1f"/><stop offset=".6" stop-color="#4a1e2c"/><stop offset="1" stop-color="#c2562b"/>
+        </linearGradient>
+        <radialGradient id="glow"><stop offset="0" stop-color="#ffd27a"/><stop offset="1" stop-color="#f29c38" stop-opacity="0"/></radialGradient>
+      </defs>
+      <rect width="600" height="600" fill="url(#sky)"/>
+      <circle cx="300" cy="380" r="210" fill="url(#glow)" opacity=".6"/>
+      <circle cx="300" cy="380" r="105" fill="#ffcf6b"/>
+      <path fill="#0b0710" d="M0 600V430h40v-60h50v80h30v-120h60v140h40v-90h45v110h35v-150h55v170h30v-70h50v50h40v-100h55v130h40v-60h30V600z"/>
+      <text x="34" y="72" font-family="Impact, Arial Black, Arial, sans-serif" font-weight="900" font-size="46" fill="#f4f4f4" letter-spacing="1">ZWART OP WIT</text>
+      <text x="36" y="104" font-family="Arial, sans-serif" font-size="15" fill="#f4f4f4" opacity=".7" letter-spacing="5">LYRICS DEMO</text>
+    </svg>`,
   );
 
 // Zelfgeschreven demo-tekst op 90 BPM (1 maat = 2,667 s).

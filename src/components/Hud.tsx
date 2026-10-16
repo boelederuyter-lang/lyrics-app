@@ -27,6 +27,8 @@ interface Props {
   onFullscreen: (() => void) | null;
   onLogout: () => void;
   logoutLabel: string;
+  artLabel: string;
+  onCycleArt: () => void;
 }
 
 export function Hud(p: Props) {
@@ -88,6 +90,9 @@ export function Hud(p: Props) {
             ×2
           </button>
           <span className="sep" />
+          <button className="ghost" onClick={p.onCycleArt} title="Achtergrond wisselen (H)">
+            {p.artLabel}
+          </button>
           <button className="ghost" onClick={p.onLogout}>
             {p.logoutLabel}
           </button>
