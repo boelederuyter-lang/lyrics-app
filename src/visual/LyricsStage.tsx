@@ -1,6 +1,7 @@
-import { AnimatePresence, motion, type Variants } from 'motion/react';
-import { Fragment, type CSSProperties } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { Fragment, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import type { LyricLine } from '../lyrics/types';
+import { textWidthAt100, useFitText, useFontsReady, useViewportSize } from './useFitText';
 import type { Cursor } from './useStageClock';
 
 export type StageStyle = 'kinetic' | 'karaoke' | 'poster';
@@ -28,23 +29,28 @@ const SLAM = [0.2, 0.9, 0.3, 1] as const;
 
 // ---------------------------------------------------------------- Hard
 
-const hardWord: Variants = {
-  future: { scale: 1, y: 0 },
-  active: { scale: [1.3, 1], y: ['-0.06em', '0em'], transition: { duration: 0.16, ease: SLAM } },
-  past: { scale: 1, y: 0 },
-};
+type Viewport = { width: number; height: number };
 
-function lineFontSize(text: string): string {
+const isPhone = (v: Viewport) => v.width <= 720;
+
+/** Gewenste grootte: korte regels groot, lange kleiner. useFitText verkleint verder als het niet past. */
+function hardMaxPx(text: string, v: Viewport): number {
+  if (isPhone(v)) return Math.min(80, Math.max(44.8, 0.15 * v.width));
   const len = Math.max(8, text.length);
-  return `clamp(2.6rem, min(${Math.min(16, 260 / len).toFixed(2)}vw, ${Math.min(22, 420 / len).toFixed(2)}vh), 13rem)`;
+  const preferred = Math.min((Math.min(16, 260 / len) / 100) * v.width, (Math.min(22, 420 / len) / 100) * v.height);
+  return Math.min(208, Math.max(41.6, preferred));
 }
 
 function HardLine({ line, index, word }: { line: LyricLine; index: number; word: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const viewport = useViewportSize();
+  // Het actieve woord slaat in (CSS-animatie); --slam bepaalt hoe groot het begint.
+  useFitText(ref, hardMaxPx(line.text, viewport), '.hw', { slam: 1.3 });
   const align = (['left', 'center', 'left', 'right'] as const)[Math.floor(rand(index + 5) * 4)];
   return (
     <motion.div
+      ref={ref}
       className={`hard-line align-${align} ${line.chorus ? 'is-chorus' : ''}`}
-      style={{ fontSize: lineFontSize(line.text) }}
       initial={{ opacity: 0, y: 28 }}
       animate={{ opacity: 1, y: 0, transition: { duration: 0.14, ease: SLAM } }}
       exit={{ opacity: 0, y: -16, transition: { duration: 0.1 } }}
@@ -52,9 +58,7 @@ function HardLine({ line, index, word }: { line: LyricLine; index: number; word:
       {line.words.map((w, i) => (
         <Fragment key={i}>
           {i > 0 && ' '}
-          <motion.span className={`hw ${wordState(i, word)}`} variants={hardWord} initial={false} animate={wordState(i, word)}>
-            {w.text}
-          </motion.span>
+          <span className={`hw ${wordState(i, word)}`}>{w.text}</span>
         </Fragment>
       ))}
     </motion.div>
@@ -63,37 +67,31 @@ function HardLine({ line, index, word }: { line: LyricLine; index: number; word:
 
 // ---------------------------------------------------------------- Stack
 
-const stackWord: Variants = {
-  future: { opacity: 0, scale: 1.6 },
-  active: { opacity: 1, scale: [1.6, 1], transition: { duration: 0.14, ease: SLAM } },
-  past: { opacity: 1, scale: 1 },
-};
+/** Basisgrootte voor Stack; elk woord krijgt daar een deel van (korte woorden groter). */
+function stackMaxPx(wordCount: number, v: Viewport): number {
+  return Math.min(0.24 * v.width, 0.3 * v.height, (1.6 / Math.max(1, wordCount)) * v.height);
+}
 
 function StackLine({ line, index, word }: { line: LyricLine; index: number; word: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const viewport = useViewportSize();
+  useFitText(ref, stackMaxPx(line.words.length, viewport), '.sw', { slam: 1.6 });
   return (
     <motion.div
+      ref={ref}
       className="stack"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1, transition: { duration: 0.08 } }}
       exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.12 } }}
     >
       {line.words.map((w, i) => {
-        const len = letters(w.text);
-        const vw = Math.min(26, 150 / len);
-        const vh = Math.min(30, 130 / len, 160 / line.words.length);
+        const size = Math.min(1, 6 / letters(w.text));
         const r = rand(index * 13 + i);
         const look = r < 0.55 ? 'solid' : r < 0.8 ? 'outline' : 'invert';
         return (
-          <motion.span
-            key={i}
-            className={`sw ${look} ${wordState(i, word)}`}
-            style={{ fontSize: `min(${vw.toFixed(2)}vw, ${vh.toFixed(2)}vh)` }}
-            variants={stackWord}
-            initial="future"
-            animate={wordState(i, word)}
-          >
+          <span key={i} className={`sw ${look} ${wordState(i, word)}`} style={{ fontSize: `${size.toFixed(3)}em` }}>
             {w.text}
-          </motion.span>
+          </span>
         );
       })}
     </motion.div>
@@ -104,38 +102,49 @@ function StackLine({ line, index, word }: { line: LyricLine; index: number; word
 
 function FlowView({ lines, cursor }: { lines: LyricLine[]; cursor: Cursor }) {
   const focus = cursor.line >= 0 ? cursor.line : cursor.next >= 0 ? cursor.next : lines.length - 1;
-  const from = Math.max(0, focus - 2);
-  const visible = lines.slice(from, focus + 4).map((line, k) => ({ line, i: from + k }));
+  const listRef = useRef<HTMLDivElement>(null);
+  const viewport = useViewportSize();
+  const fontsReady = useFontsReady();
+  const [fontPx, setFontPx] = useState<number | null>(null);
+
+  // Eén lettergrootte per nummer (niet per regel verspringen): het langste woord moet passen.
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    let widest = 1;
+    for (const l of lines) for (const w of l.words) widest = Math.max(widest, textWidthAt100(w.text.toUpperCase()));
+    const maxPx = Math.min(70.4, Math.max(30.4, 0.05 * viewport.width));
+    setFontPx(Math.max(14, Math.min(maxPx, ((list.clientWidth * 0.94) / widest) * 100)));
+  }, [lines, viewport, fontsReady]);
+
+  // De huidige regel steeds in het midden van het scherm; de lijst schuift mee.
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    const row = list?.children[focus] as HTMLElement | undefined;
+    const stage = list?.parentElement;
+    if (!list || !row || !stage) return;
+    list.style.transform = `translateY(${(stage.clientHeight / 2 - (row.offsetTop + row.offsetHeight / 2)).toFixed(1)}px)`;
+  }, [focus, fontPx, viewport]);
 
   return (
-    <div className="flow">
-      <AnimatePresence mode="popLayout" initial={false}>
-        {visible.map(({ line, i }) => {
-          const isCurrent = i === cursor.line;
-          const isPast = cursor.line >= 0 ? i < cursor.line : i < focus;
-          return (
-            <motion.div
-              layout
-              key={i}
-              className={`f-row ${isCurrent ? 'current' : isPast ? 'past' : 'future'}`}
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: isCurrent ? 1 : isPast ? 0.25 : 0.45, y: 0, scale: isCurrent ? 1 : 0.82 }}
-              exit={{ opacity: 0, y: -40, transition: { duration: 0.2 } }}
-              transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-            >
-              {line.words.map((w, wi) => {
-                const state = isCurrent ? wordState(wi, cursor.word) : isPast ? 'past' : 'future';
-                const fill = state === 'past' ? '100%' : state === 'future' ? '0%' : 'calc(var(--wp) * 100%)';
-                return (
-                  <span key={wi} className={`fw ${state}`} style={{ '--fill': fill } as CSSProperties}>
-                    {w.text}
-                  </span>
-                );
-              })}
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
+    <div ref={listRef} className="flow" style={fontPx ? { fontSize: fontPx } : undefined}>
+      {lines.map((line, i) => {
+        const isCurrent = i === cursor.line;
+        const isPast = cursor.line >= 0 ? i < cursor.line : i < focus;
+        return (
+          <div key={i} className={`f-row ${isCurrent ? 'current' : isPast ? 'past' : 'future'}`}>
+            {line.words.map((w, wi) => {
+              const state = isCurrent ? wordState(wi, cursor.word) : isPast ? 'past' : 'future';
+              const fill = state === 'past' ? '100%' : state === 'future' ? '0%' : 'calc(var(--wp) * 100%)';
+              return (
+                <span key={wi} className={`fw ${state}`} style={{ '--fill': fill } as CSSProperties}>
+                  {w.text}
+                </span>
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -164,9 +173,12 @@ function Interlude({ cursor, lines, title }: { cursor: Cursor; lines: LyricLine[
 }
 
 export function TitleCard({ title, subtitle }: { title: string; subtitle?: string }) {
+  const ref = useRef<HTMLHeadingElement>(null);
+  const viewport = useViewportSize();
+  useFitText(ref, Math.min(144, Math.max(48, 0.12 * viewport.width)), '.reveal');
   return (
     <div className="title-card">
-      <h1>
+      <h1 ref={ref}>
         {title.split(' ').map((word, i) => (
           <span key={`${title}-${i}`} className="reveal">
             <motion.span
