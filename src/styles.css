@@ -341,6 +341,26 @@ code {
   text-align: center;
 }
 
+.stage.stage-scroll {
+  place-items: start center;
+  overflow-y: auto;
+  padding-top: max(40px, env(safe-area-inset-top));
+  padding-bottom: max(40px, env(safe-area-inset-bottom));
+}
+
+.idle.compact {
+  gap: 1.4rem;
+}
+
+.access-steps {
+  width: min(28rem, 100%);
+  text-align: left;
+}
+
+.access-steps p {
+  text-shadow: none;
+}
+
 .explain.small {
   max-width: 24rem;
   margin-top: -1rem;

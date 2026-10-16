@@ -54,12 +54,14 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
     return request<T>(path, init, false);
   }
   if (!res.ok) {
-    let message = `Spotify API-fout (${res.status})`;
+    // Meestal JSON ({"error":{"message":…}}), maar soms losse tekst, bv. bij accounts die niet in
+    // User Management staan: "User not registered in the Developer Dashboard".
+    const body = (await res.text().catch(() => '')).trim();
+    let message = body.slice(0, 200) || `Spotify API-fout (${res.status})`;
     try {
-      const json = await res.json();
-      message = json?.error?.message ?? message;
+      message = JSON.parse(body)?.error?.message || message;
     } catch {
-      // geen JSON-body
+      // geen JSON-body: de tekst zelf is de melding
     }
     throw new SpotifyError(res.status, message);
   }

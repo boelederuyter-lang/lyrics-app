@@ -59,9 +59,12 @@ function shown(s: PlaybackSnapshot, slew: Slew, now = performance.now()): number
   return Math.min(Math.max(pos, 0), s.track.durationMs || Infinity);
 }
 
-/** Spotify-app in development mode: alleen accounts die de eigenaar heeft toegevoegd mogen erin. */
-export function isNotRegistered(err: unknown): boolean {
-  return err instanceof api.SpotifyError && err.status === 403 && /regist/i.test(err.message);
+/**
+ * Spotify-app in development mode: alleen accounts die de eigenaar in User Management heeft gezet,
+ * mogen erin. Een weigering (403) bij het ophalen van wat er speelt betekent dus: geen toegang.
+ */
+export function isAccessDenied(err: unknown): boolean {
+  return err instanceof api.SpotifyError && err.status === 403;
 }
 
 function describeError(err: unknown): string {
@@ -92,8 +95,8 @@ export function usePlayback(enabled: boolean) {
   const lastDeviceIdRef = useRef<string | null>(localStorage.getItem(LAST_DEVICE_KEY));
   /** Spotify is niet bereikbaar (app slaapt): dan moet je hem even openen. */
   const [asleep, setAsleep] = useState(false);
-  /** Dit Spotify-account staat (nog) niet op de lijst van de app. */
-  const [notRegistered, setNotRegistered] = useState(false);
+  /** Dit Spotify-account mag (nog) niet in de app; bevat de melding van Spotify. */
+  const [notRegistered, setNotRegistered] = useState<string | null>(null);
   const resumeOnReturnRef = useRef(0);
   /** Telt elke play/pauze-druk, zodat een latere controle weet of je intussen iets anders deed. */
   const toggleCountRef = useRef(0);
@@ -263,6 +266,7 @@ export function usePlayback(enabled: boolean) {
           const state = await api.getPlayerState();
           const receivedAt = (started + performance.now()) / 2;
           if (stopped) return;
+          setNotRegistered(null);
           if (!state) {
             update({ ...EMPTY, receivedAt });
           } else {
@@ -280,7 +284,7 @@ export function usePlayback(enabled: boolean) {
             });
           }
         } catch (err) {
-          if (isNotRegistered(err)) setNotRegistered(true);
+          if (isAccessDenied(err)) setNotRegistered((err as Error).message);
           else setError(describeError(err));
         }
         const s = snapRef.current;

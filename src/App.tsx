@@ -247,21 +247,38 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
       <Background art={track?.albumArt ?? null} lineKey={cursor.line} mode={artMode} dim={!coverMoment} />
 
       {notRegistered ? (
-        <div className="stage">
-          <div className="idle">
+        <div className="stage stage-scroll">
+          <div className="idle compact">
             <TitleCard title="Nog geen toegang" subtitle="Je Spotify-account staat nog niet op de lijst" />
-            <p className="explain">
-              Vraag degene die je de link stuurde om je toe te voegen in het Spotify-dashboard (User Management), met het
-              e-mailadres van je Spotify-account. Daarna werkt het meteen.
-            </p>
+            <ol className="steps access-steps">
+              <li>
+                <strong>Zoek je Spotify-e-mail op</strong>
+                <p>
+                  In Spotify: je profiel → <b>Instellingen</b> → <b>Account</b>. Log je in met Apple of Google, dan kan dat
+                  een ander adres zijn dan je denkt.
+                </p>
+              </li>
+              <li>
+                <strong>Laat je toevoegen</strong>
+                <p>
+                  Degene die je de link stuurde zet je naam en precies dat e-mailadres in het Spotify-dashboard, bij{' '}
+                  <b>User Management</b>.
+                </p>
+              </li>
+              <li>
+                <strong>Opnieuw verbinden</strong>
+                <p>Tik hieronder op Ander account en verbind opnieuw met Spotify.</p>
+              </li>
+            </ol>
             <div className="button-row">
-              <button className="accent big" onClick={() => window.location.reload()}>
-                Opnieuw proberen
-              </button>
-              <button className="ghost big" onClick={onLogout}>
+              <button className="accent big" onClick={onLogout}>
                 Ander account
               </button>
+              <button className="ghost big" onClick={() => window.location.reload()}>
+                Opnieuw proberen
+              </button>
             </div>
+            <span className="label">Spotify zegt: {notRegistered}</span>
           </div>
         </div>
       ) : !track ? (
@@ -318,7 +335,7 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
       )}
 
       <Hud
-        visible={(hudVisible || snapshot.paused) && !syncing}
+        visible={(hudVisible || snapshot.paused) && !syncing && !notRegistered}
         snapshot={snapshot}
         deviceReady={deviceReady}
         style={style}
