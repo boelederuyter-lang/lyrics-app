@@ -563,6 +563,19 @@ code {
   cursor: pointer;
 }
 
+.toast-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: default;
+}
+
+.toast-action .accent {
+  flex: none;
+  color: var(--white);
+  background: #000;
+}
+
 /* ---------------------------------------------------------------- stage */
 
 .stage {
@@ -787,6 +800,12 @@ code {
   text-transform: uppercase;
   letter-spacing: 0.2em;
   color: var(--grey);
+}
+
+.idle {
+  display: grid;
+  justify-items: center;
+  gap: 2.5rem;
 }
 
 .interlude {

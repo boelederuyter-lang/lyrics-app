@@ -141,7 +141,7 @@ if (isDemo) primeLyrics(DEMO_TRACK.id, DEMO_LYRICS);
 function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boolean }) {
   const spotify = usePlayback(!demo);
   const demoPlayback = useDemoPlayback();
-  const { snapshot, getPosition, deviceReady, controls, error, clearError } = demo ? demoPlayback : spotify;
+  const { snapshot, getPosition, deviceReady, controls, error, clearError, asleep } = demo ? demoPlayback : spotify;
   const track = snapshot.track;
   const lyricsState = useLyrics(track);
   const lyrics = lyricsState.status === 'ready' ? lyricsState.lyrics : null;
@@ -312,16 +312,21 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
 
       {!track ? (
         <div className="stage">
-          <TitleCard
-            title="Druk op play"
-            subtitle={
-              !browserPlaybackSupported
-                ? 'Start een nummer in de Spotify-app'
-                : deviceReady
-                  ? 'Start een nummer in Spotify, of klik op "Speel hier af"'
-                  : 'Spotify-speler aan het verbinden…'
-            }
-          />
+          <div className="idle">
+            <TitleCard
+              title="Druk op play"
+              subtitle={
+                !browserPlaybackSupported
+                  ? 'Of start een nummer in de Spotify-app'
+                  : deviceReady
+                    ? 'Of start een nummer in Spotify, of klik op "Speel hier af"'
+                    : 'Spotify-speler aan het verbinden…'
+              }
+            />
+            <button className="accent big" onClick={controls.togglePlay}>
+              ▶ Verder luisteren
+            </button>
+          </div>
         </div>
       ) : lines ? (
         <LyricsStage lines={lines} cursor={cursor} style={style} title={track.name} />
@@ -335,7 +340,7 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
       )}
 
       <Hud
-        visible={hudVisible && !syncing}
+        visible={(hudVisible || snapshot.paused) && !syncing}
         snapshot={snapshot}
         deviceReady={deviceReady}
         style={style}
@@ -371,7 +376,17 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
         />
       )}
 
-      {error ? (
+      {asleep ? (
+        <div className="toast toast-action" role="alert">
+          <span>
+            Spotify slaapt{browserPlaybackSupported ? '' : ' op je telefoon'}. Open hem even, dan start de muziek
+            zodra je terug bent.
+          </span>
+          <button className="accent" onClick={controls.openSpotify}>
+            Open Spotify
+          </button>
+        </div>
+      ) : error ? (
         <div className="toast" role="alert" onClick={clearError}>
           {error}
         </div>

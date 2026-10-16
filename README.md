@@ -37,7 +37,15 @@ De workflow in `.github/workflows/deploy.yml` bouwt en publiceert de app bij elk
 - **iPhone**: open de link in Safari → deel-knop → *Zet op beginscherm*.
 - **Android**: open in Chrome → menu ⋮ → *App installeren* / *Toevoegen aan startscherm*.
 
-Start een nummer in de Spotify-app en ga terug naar Lyrics.
+Start een nummer in de Spotify-app en ga terug naar Lyrics. Werkt op iPhone en Android hetzelfde.
+
+### Afspelen bedienen vanuit de app
+
+Play/pauze, vorige en volgende werken via Spotify Connect: de muziek speelt in de Spotify-app, Lyrics is de afstandsbediening.
+
+- Staat Spotify al een tijdje op pauze, dan zet je telefoon de Spotify-app in slaapstand. Lyrics zoekt dan je telefoon in je Spotify-apparaten en start daar (nooit vanzelf op een speaker of tv).
+- Slaapt Spotify helemaal, dan verschijnt **Open Spotify**. Even openen en teruggaan naar Lyrics is genoeg: de muziek start vanzelf.
+- Op een iPhone gaat Spotify sneller slapen dan op Android.
 
 ## Lokaal ontwikkelen
 

@@ -80,7 +80,18 @@ export function toTrackInfo(track: ApiTrack | Spotify.Track): TrackInfo {
   };
 }
 
+export interface ApiDevice {
+  id: string | null;
+  is_active: boolean;
+  is_restricted: boolean;
+  name: string;
+  /** Bv. "Smartphone", "Computer", "Tablet", "Speaker", "TV". */
+  type: string;
+}
+
 export const getPlayerState = () => request<ApiPlayerState>('/me/player');
+
+export const getDevices = () => request<{ devices: ApiDevice[] }>('/me/player/devices');
 
 export const transferPlayback = (deviceId: string, play = true) =>
   request('/me/player', { method: 'PUT', body: JSON.stringify({ device_ids: [deviceId], play }) });

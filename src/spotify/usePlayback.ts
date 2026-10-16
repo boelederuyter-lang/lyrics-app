@@ -3,6 +3,7 @@ import { getAccessToken } from './auth';
 import * as api from './api';
 import type { TrackInfo } from './api';
 import { createSlew, NO_SLEW, predictPosition, slewOffset, type Slew } from './clock';
+import { pickDevice } from './devices';
 
 export interface PlaybackSnapshot {
   track: TrackInfo | null;
@@ -38,6 +39,11 @@ const TRACK_CHANGE_POLL_MS = 1000;
 /** Zo kort na het verwachte einde van een nummer vragen we het volgende op. */
 const END_OF_TRACK_MARGIN_MS = 250;
 const LOCAL_SYNC_MS = 1000;
+/** Zo lang na "Open Spotify" starten we de muziek vanzelf als je terugkomt in de app. */
+const RESUME_ON_RETURN_MS = 3 * 60_000;
+/** Zo lang na een play-commando controleren we of de muziek echt speelt. */
+const VERIFY_PLAY_MS = 2500;
+const LAST_DEVICE_KEY = 'lyrics.last-device';
 /** Kleinere verschillen zijn meetruis. */
 const DRIFT_TOLERANCE_MS = 40;
 
@@ -55,7 +61,10 @@ function shown(s: PlaybackSnapshot, slew: Slew, now = performance.now()): number
 
 function describeError(err: unknown): string {
   if (err instanceof api.SpotifyError) {
-    if (err.status === 404) return 'Geen actief Spotify-apparaat. Klik op "Speel hier af" of start muziek in Spotify.';
+    if (err.status === 404)
+      return browserPlaybackSupported
+        ? 'Geen actief Spotify-apparaat. Klik op "Speel hier af" of start muziek in Spotify.'
+        : 'Spotify is niet actief. Open Spotify even en probeer het opnieuw.';
     if (err.status === 403) return `Spotify weigerde dit: ${err.message}`;
     if (err.status === 429) return 'Even rustig aan: Spotify rate limit bereikt.';
     return err.message;
@@ -72,6 +81,13 @@ export function usePlayback(enabled: boolean) {
   const playerRef = useRef<Spotify.Player | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pollNowRef = useRef<() => void>(() => {});
+  /** Laatst gebruikte Spotify-apparaat, om daar te hervatten als er niets actief is. */
+  const lastDeviceIdRef = useRef<string | null>(localStorage.getItem(LAST_DEVICE_KEY));
+  /** Spotify is niet bereikbaar (app slaapt): dan moet je hem even openen. */
+  const [asleep, setAsleep] = useState(false);
+  const resumeOnReturnRef = useRef(0);
+  /** Telt elke play/pauze-druk, zodat een latere controle weet of je intussen iets anders deed. */
+  const toggleCountRef = useRef(0);
 
   const update = useCallback((next: PlaybackSnapshot) => {
     const prev = snapRef.current;
@@ -175,6 +191,52 @@ export function usePlayback(enabled: boolean) {
     return () => window.clearInterval(id);
   }, [enabled, handleSdkState]);
 
+  /**
+   * Hervatten, ook als Spotify geen actief apparaat meer heeft (bv. na een lange pauze):
+   * dan zoeken we je telefoon (of computer) in de apparatenlijst en starten we daar.
+   * Geeft false als er geen geschikt apparaat bereikbaar is.
+   */
+  const resumeAnywhere = useCallback(async (): Promise<boolean> => {
+    try {
+      await api.resume();
+      return true;
+    } catch (err) {
+      if (!(err instanceof api.SpotifyError) || err.status !== 404) throw err;
+    }
+    const found = await api.getDevices();
+    const device = pickDevice(found?.devices ?? [], {
+      preferTypes: browserPlaybackSupported ? ['Computer'] : ['Smartphone', 'Tablet'],
+      lastDeviceId: lastDeviceIdRef.current,
+      ownDeviceId: deviceIdRef.current,
+    });
+    if (!device?.id) {
+      setAsleep(true);
+      return false;
+    }
+    await api.transferPlayback(device.id, true);
+    return true;
+  }, []);
+
+  /** Een slapende Spotify-app neemt het commando soms aan zonder te spelen: even nakijken. */
+  const verifyPlaying = useCallback(() => {
+    const press = toggleCountRef.current;
+    window.setTimeout(async () => {
+      // Intussen zelf weer op pauze gedrukt (of in de browser aan het afspelen)? Dan niets zeggen.
+      if (toggleCountRef.current !== press || snapRef.current.isLocal) return;
+      try {
+        const state = await api.getPlayerState();
+        if (!state?.is_playing) setAsleep(true);
+      } catch {
+        // de gewone polling meldt fouten al
+      }
+    }, VERIFY_PLAY_MS);
+  }, []);
+
+  // Muziek speelt weer: melding over slapende Spotify weghalen.
+  useEffect(() => {
+    if (snapshot.track && !snapshot.paused) setAsleep(false);
+  }, [snapshot]);
+
   // Ander apparaat (telefoon, desktop-app): de Web API pollen.
   useEffect(() => {
     if (!enabled) return;
@@ -195,6 +257,10 @@ export function usePlayback(enabled: boolean) {
           if (!state) {
             update({ ...EMPTY, receivedAt });
           } else {
+            if (state.device.id && state.device.id !== lastDeviceIdRef.current) {
+              lastDeviceIdRef.current = state.device.id;
+              localStorage.setItem(LAST_DEVICE_KEY, state.device.id);
+            }
             update({
               track: state.item && state.currently_playing_type === 'track' ? api.toTrackInfo(state.item) : null,
               positionMs: state.progress_ms ?? 0,
@@ -224,7 +290,23 @@ export function usePlayback(enabled: boolean) {
     };
     // Terug in de app (bv. na een nummer kiezen in Spotify): meteen verversen.
     const onVisible = () => {
-      if (document.visibilityState === 'visible') poll();
+      if (document.visibilityState !== 'visible') return;
+      poll();
+      // Net Spotify wakker gemaakt via "Open Spotify"? Dan de muziek starten.
+      if (resumeOnReturnRef.current && Date.now() - resumeOnReturnRef.current < RESUME_ON_RETURN_MS) {
+        resumeOnReturnRef.current = 0;
+        window.setTimeout(async () => {
+          try {
+            const state = await api.getPlayerState();
+            if (state?.is_playing) return; // al aangezet in Spotify zelf
+            if (await resumeAnywhere()) verifyPlaying();
+          } catch (err) {
+            setError(describeError(err));
+          } finally {
+            pollNowRef.current();
+          }
+        }, 600);
+      }
     };
     document.addEventListener('visibilitychange', onVisible);
     poll();
@@ -233,7 +315,7 @@ export function usePlayback(enabled: boolean) {
       window.clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [enabled, update]);
+  }, [enabled, update, resumeAnywhere, verifyPlaying]);
 
   const controls = useMemo(() => {
     const run = async (fn: () => Promise<unknown>) => {
@@ -252,12 +334,20 @@ export function usePlayback(enabled: boolean) {
       togglePlay: () =>
         run(async () => {
           const s = snapRef.current;
+          toggleCountRef.current += 1;
           // Optimistisch bijwerken zodat de animaties direct reageren.
-          update({ ...s, paused: !s.paused, positionMs: shown(s, slewRef.current), receivedAt: performance.now() });
-          if (local()) await playerRef.current!.togglePlay();
-          else if (s.paused) await api.resume();
-          else await api.pause();
+          if (s.track) update({ ...s, paused: !s.paused, positionMs: shown(s, slewRef.current), receivedAt: performance.now() });
+          if (local()) return playerRef.current!.togglePlay();
+          if (!s.paused) return api.pause();
+          setAsleep(false);
+          if (await resumeAnywhere()) verifyPlaying();
         }),
+      /** Spotify-app openen om hem wakker te maken; bij terugkomst start de muziek vanzelf. */
+      openSpotify: () => {
+        setAsleep(false);
+        resumeOnReturnRef.current = Date.now();
+        window.location.href = 'spotify:';
+      },
       next: () => run(() => (local() ? playerRef.current!.nextTrack() : api.next())),
       previous: () => run(() => (local() ? playerRef.current!.previousTrack() : api.previous())),
       seek: (ms: number) => run(() => (local() ? playerRef.current!.seek(ms) : api.seek(ms))),
@@ -268,7 +358,15 @@ export function usePlayback(enabled: boolean) {
           await api.transferPlayback(deviceIdRef.current, true);
         }),
     };
-  }, [update]);
+  }, [update, resumeAnywhere, verifyPlaying]);
 
-  return { snapshot, getPosition, deviceReady: deviceId !== null, controls, error, clearError: () => setError(null) };
+  return {
+    snapshot,
+    getPosition,
+    deviceReady: deviceId !== null,
+    controls,
+    error,
+    clearError: () => setError(null),
+    asleep,
+  };
 }

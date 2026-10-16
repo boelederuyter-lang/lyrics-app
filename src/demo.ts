@@ -87,6 +87,7 @@ export function useDemoPlayback() {
       previous: () => set(0, false),
       seek: (ms: number) => set(ms, anchor.current.paused),
       playHere: () => {},
+      openSpotify: () => {},
     }),
     [getPosition, set],
   );
@@ -100,5 +101,5 @@ export function useDemoPlayback() {
     isLocal: true,
   };
 
-  return { snapshot, getPosition, deviceReady: true, controls, error: null, clearError: () => {} };
+  return { snapshot, getPosition, deviceReady: true, controls, error: null, clearError: () => {}, asleep: false };
 }
