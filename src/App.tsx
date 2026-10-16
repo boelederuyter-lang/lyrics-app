@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motionEnergy, songEnergy, type MotionMode } from './beat/energy';
 import { DEFAULT_GRID, estimateBeatGrid, gridFromTaps, type BeatGrid } from './beat/tempo';
 import { Hud } from './components/Hud';
 import { Login } from './components/Login';
@@ -71,6 +72,7 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
 
   const [style, setStyle] = usePersisted<StageStyle>('lyrics.style', 'kinetic');
   const [artMode, setArtMode] = usePersisted<ArtMode>('lyrics.art', 'color');
+  const [motion, setMotion] = usePersisted<MotionMode>('lyrics.motion', 'auto');
   const cycleArtMode = useCallback(
     () => setArtMode((m) => ART_MODES[(ART_MODES.findIndex((a) => a.id === m) + 1) % ART_MODES.length].id),
     [setArtMode],
@@ -128,7 +130,11 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
     return { ...g, bpm: g.bpm * bpmFactor };
   }, [tapGrid, estimated, bpmFactor]);
 
-  const cursor = useStageClock(lines, getTime, grid, snapshot.paused);
+  // Rustige nummers bewegen minder (op basis van hoe snel er gezongen/gerapt wordt).
+  const autoEnergy = useMemo(() => (lines ? songEnergy(lines) : 0.5), [lines]);
+  const energy = motionEnergy(motion, autoEnergy);
+
+  const cursor = useStageClock(lines, getTime, grid, snapshot.paused, energy);
   // Instrumentaal stuk midden in het nummer (geen tekst in beeld): dan mag de hoes helder.
   const coverMoment = !!lines && style !== 'karaoke' && cursor.line < 0 && cursor.next !== 0;
 
@@ -277,7 +283,7 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
           </div>
         </div>
       ) : lines ? (
-        <LyricsStage lines={lines} cursor={cursor} style={style} title={track.name} />
+        <LyricsStage lines={lines} cursor={cursor} style={style} title={track.name} energy={energy} />
       ) : lyrics?.kind === 'plain' ? (
         <PlainLyrics lines={lyrics.lines} getTime={getTime} durationMs={track.durationMs} />
       ) : (
@@ -314,6 +320,8 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
         onFullscreen={document.fullscreenEnabled ? toggleFullscreen : null}
         artMode={artMode}
         onArtMode={setArtMode}
+        motion={motion}
+        onMotion={setMotion}
         onShare={() => setSharing(true)}
         onLogout={onLogout}
         logoutLabel={demo ? 'Demo sluiten' : 'Uitloggen'}

@@ -29,18 +29,21 @@ export function useStageClock(
   getTime: () => number,
   grid: BeatGrid,
   paused: boolean,
+  /** 0,15 (rustig nummer) … 1 (druk): hoe hard alles meebeweegt. */
+  energy = 1,
 ): Cursor {
   const [cursor, setCursor] = useState<Cursor>(EMPTY);
 
   useEffect(() => {
     const root = document.documentElement.style;
+    root.setProperty('--energy', energy.toFixed(2));
     let raf = 0;
 
     const tick = () => {
       const t = getTime();
       const beat = beatAt(grid, t);
-      root.setProperty('--beat', paused ? '0' : beatPulse(beat.frac).toFixed(3));
-      root.setProperty('--beat-soft', paused ? '0' : beatPulse(beat.frac, 2.5).toFixed(3));
+      root.setProperty('--beat', paused ? '0' : (beatPulse(beat.frac) * energy).toFixed(3));
+      root.setProperty('--beat-soft', paused ? '0' : (beatPulse(beat.frac, 2.5) * energy).toFixed(3));
 
       let next: Cursor = EMPTY;
       let wordProgress = 0;
@@ -71,7 +74,7 @@ export function useStageClock(
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [lines, getTime, grid, paused]);
+  }, [lines, getTime, grid, paused, energy]);
 
   return cursor;
 }

@@ -3,7 +3,9 @@
 import { parseInvite } from './invite';
 
 const CLIENT_ID_KEY = 'lyrics.client-id';
-const ENV_CLIENT_ID = (import.meta.env.VITE_SPOTIFY_CLIENT_ID ?? '').trim();
+/** Client ID van de Lyrics-app in het Spotify-dashboard (niet geheim; de client secret wel). */
+const BUILT_IN_CLIENT_ID = 'caf58368068b44c9abc2add9caa86865';
+const ENV_CLIENT_ID = (import.meta.env.VITE_SPOTIFY_CLIENT_ID ?? '').trim() || BUILT_IN_CLIENT_ID;
 
 /** true als de Client ID in de build zit; dan valt er in de app niks in te stellen. */
 export const clientIdFromBuild = ENV_CLIENT_ID.length > 0;

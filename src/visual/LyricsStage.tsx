@@ -41,11 +41,14 @@ function hardMaxPx(text: string, v: Viewport): number {
   return Math.min(208, Math.max(41.6, preferred));
 }
 
-function HardLine({ line, index, word }: { line: LyricLine; index: number; word: number }) {
+/** Hoe hard een woord inslaat: bij rustige nummers (lage energie) bijna niet. */
+const slamFor = (max: number, energy: number) => 1 + (max - 1) * energy;
+
+function HardLine({ line, index, word, energy }: { line: LyricLine; index: number; word: number; energy: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize();
   // Het actieve woord slaat in (CSS-animatie); --slam bepaalt hoe groot het begint.
-  useFitText(ref, hardMaxPx(line.text, viewport), '.hw', { slam: 1.3 });
+  useFitText(ref, hardMaxPx(line.text, viewport), '.hw', { slam: slamFor(1.3, energy) });
   const align = (['left', 'center', 'left', 'right'] as const)[Math.floor(rand(index + 5) * 4)];
   return (
     <motion.div
@@ -72,10 +75,10 @@ function stackMaxPx(wordCount: number, v: Viewport): number {
   return Math.min(0.24 * v.width, 0.3 * v.height, (1.6 / Math.max(1, wordCount)) * v.height);
 }
 
-function StackLine({ line, index, word }: { line: LyricLine; index: number; word: number }) {
+function StackLine({ line, index, word, energy }: { line: LyricLine; index: number; word: number; energy: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize();
-  useFitText(ref, stackMaxPx(line.words.length, viewport), '.sw', { slam: 1.6 });
+  useFitText(ref, stackMaxPx(line.words.length, viewport), '.sw', { slam: slamFor(1.6, energy) });
   return (
     <motion.div
       ref={ref}
@@ -217,9 +220,10 @@ interface StageProps {
   cursor: Cursor;
   style: StageStyle;
   title: string;
+  energy: number;
 }
 
-export function LyricsStage({ lines, cursor, style, title }: StageProps) {
+export function LyricsStage({ lines, cursor, style, title, energy }: StageProps) {
   const current = cursor.line >= 0 ? lines[cursor.line] : null;
 
   if (style === 'karaoke') {
@@ -236,9 +240,9 @@ export function LyricsStage({ lines, cursor, style, title }: StageProps) {
         <AnimatePresence>
           {current ? (
             style === 'kinetic' ? (
-              <HardLine key={`l${cursor.line}`} line={current} index={cursor.line} word={cursor.word} />
+              <HardLine key={`l${cursor.line}`} line={current} index={cursor.line} word={cursor.word} energy={energy} />
             ) : (
-              <StackLine key={`s${cursor.line}`} line={current} index={cursor.line} word={cursor.word} />
+              <StackLine key={`s${cursor.line}`} line={current} index={cursor.line} word={cursor.word} energy={energy} />
             )
           ) : (
             <Interlude key="interlude" cursor={cursor} lines={lines} title={title} />

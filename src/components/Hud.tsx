@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MOTION_MODES, type MotionMode } from '../beat/energy';
 import type { BeatGrid } from '../beat/tempo';
 import type { PlaybackSnapshot } from '../spotify/usePlayback';
 import { formatDelay } from '../sync/delay';
@@ -28,6 +29,8 @@ interface Props {
   onFullscreen: (() => void) | null;
   artMode: ArtMode;
   onArtMode: (m: ArtMode) => void;
+  motion: MotionMode;
+  onMotion: (m: MotionMode) => void;
   onShare: () => void;
   onLogout: () => void;
   logoutLabel: string;
@@ -102,6 +105,17 @@ export function Hud(p: Props) {
               <button className={`ghost square ${p.bpmFactor === 2 ? 'on' : ''}`} onClick={() => p.onBpmFactor(p.bpmFactor === 2 ? 1 : 2)} title="Dubbel tempo">
                 ×2
               </button>
+            </div>
+          </div>
+
+          <div className="sheet-row">
+            <span className="label">Beweging</span>
+            <div className="segmented" title="Auto: rustige nummers bewegen minder">
+              {MOTION_MODES.map((m) => (
+                <button key={m.id} className={p.motion === m.id ? 'on' : ''} onClick={() => p.onMotion(m.id)}>
+                  {m.label}
+                </button>
+              ))}
             </div>
           </div>
 

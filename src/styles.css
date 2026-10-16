@@ -9,6 +9,7 @@
   --beat: 0;
   --beat-soft: 0;
   --wp: 0;
+  --energy: 1;
   --display: 'Anton', 'Impact', 'Arial Narrow', sans-serif;
   --ui: 'Inter', system-ui, sans-serif;
   color-scheme: dark;
@@ -143,7 +144,7 @@ code {
 
 @keyframes flash {
   from {
-    opacity: 0.07;
+    opacity: calc(0.015 + 0.055 * var(--energy, 1));
   }
   to {
     opacity: 0;

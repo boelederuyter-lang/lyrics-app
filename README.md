@@ -9,7 +9,8 @@ Verbind met Spotify en zie de lyrics van wat je luistert als een strakke zwart-w
   - **Computer**: kan ook direct in de browser afspelen (Web Playback SDK, Premium).
 - **Gesynchroniseerde lyrics** via [LRCLIB](https://lrclib.net) (gratis). Timing per woord als de bron die heeft, anders geschat.
 - **3 stijlen**: `Hard` (één regel groot, woorden slaan erin), `Flow` (meekleurende regels), `Stack` (cover-achtige blokletters).
-- **Op de beat**: tempo geschat uit de lyric-timing. Klopt het niet? Tik mee met **Tap beat**, of gebruik ½ / ×2 (onder de instellingenknop).
+- **Op de beat**: tempo geschat uit de lyric-timing. Klopt het niet? Tik mee met **Tap**, of gebruik ½ / ×2 (onder de instellingenknop).
+- **Beweging past zich aan**: rustige nummers (weinig lettergrepen per seconde) knikken en flitsen minder dan snelle rap. Of kies zelf: instellingen → *Beweging* → Auto / Rustig / Vol.
 - **Sync per nummer**: met **Tik-sync** tik je drie keer als een regel begint; de app rekent de vertraging uit en onthoudt die per nummer. Nieuwe nummers starten met je gebruikelijke vertraging (handig met Bluetooth-oortjes).
 - **Albumhoes op de achtergrond**: scherp in het midden met een wazige versie eromheen. Donkerder als er tekst staat, helder tijdens instrumentale stukken. Te wisselen tussen kleur, zwart-wit en alleen vaag (instellingen → *Hoes*).
 - Grijstinten voor de tekst, filmkorrel, flits bij elke nieuwe regel.
@@ -29,7 +30,7 @@ De workflow in `.github/workflows/deploy.yml` bouwt en publiceert de app bij elk
 2. Redirect URI's toevoegen:
    - online: `https://<gebruiker>.github.io/lyrics-app/`
    - lokaal: `http://127.0.0.1:5173/` (Spotify accepteert geen `localhost`)
-3. Client ID: plak hem in de app bij de eerste keer openen, **of** zet hem als repository variable `SPOTIFY_CLIENT_ID` (Settings → Secrets and variables → Actions → Variables). Dan hoeven je vrienden niks in te vullen.
+3. Client ID: zit ingebouwd in `src/spotify/auth.ts` (`BUILT_IN_CLIENT_ID`). Een andere Spotify-app gebruiken? Zet dan de repository variable `SPOTIFY_CLIENT_ID` (Settings → Secrets and variables → Actions → Variables) of `VITE_SPOTIFY_CLIENT_ID` in `.env`.
 4. Vrienden toevoegen: dashboard → je app → **User Management** (naam + e-mail van hun Spotify-account).
 
 ## Delen met vrienden
@@ -37,10 +38,7 @@ De workflow in `.github/workflows/deploy.yml` bouwt en publiceert de app bij elk
 In de app: instellingen → **Deel Lyrics**. Daar staat wat je moet doen:
 
 1. Zet je vriend op de lijst in het Spotify-dashboard (**User Management**, max. 5 mensen).
-2. Stuur de link. Jouw Client ID zit in de link (`?client=…`), dus je vriend hoeft niks in te stellen.
-3. Een iPhone bewaart de app op het beginscherm los van Safari. Daar vraagt Lyrics één keer om de link: **Plak uitnodiging**.
-
-Wil je dat niemand ooit iets hoeft te plakken? Zet je Client ID als repository variable `SPOTIFY_CLIENT_ID` (zie hierboven), dan zit hij in de app zelf.
+2. Stuur de link. De Client ID zit in de app, dus je vriend opent hem, verbindt met Spotify en is klaar.
 
 Staat een vriend nog niet op de lijst, dan laat Lyrics dat duidelijk zien (**Nog geen toegang**). Zonder Premium werken de lyrics wel, maar bedienen kan alleen in Spotify zelf.
 
