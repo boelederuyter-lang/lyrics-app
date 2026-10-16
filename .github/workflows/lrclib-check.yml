@@ -1,0 +1,22 @@
+name: LRCLIB-check (tijdelijk)
+on:
+  push:
+    branches: ['debug/lrclib-check']
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Zoek nummers op in LRCLIB
+        run: |
+          show() { jq -r 'if type=="array" then .[] else . end | "\(.id) | \(.trackName) | \(.artistName) | \(.albumName) | \(.duration)s | synced=\(.syncedLyrics != null) | plain=\(.plainLyrics != null)"' | head -15; }
+          for q in "Broke Out|J. Cole" "Rein Me In|Sam Fender" "Rein Me In (with Olivia Dean)|Sam Fender"; do
+            t="${q%%|*}"; a="${q##*|}"
+            echo "=== search track_name='$t' artist_name='$a'"
+            curl -sS -G https://lrclib.net/api/search --data-urlencode "track_name=$t" --data-urlencode "artist_name=$a" -A "lyrics-app check" | show
+            echo "=== search q='$t $a'"
+            curl -sS -G https://lrclib.net/api/search --data-urlencode "q=$t $a" -A "lyrics-app check" | show
+          done
+          echo "=== q='Broke Out'"
+          curl -sS -G https://lrclib.net/api/search --data-urlencode "q=Broke Out" -A "lyrics-app check" | show
+          echo "=== CORS-headers"
+          curl -sSI -H "Origin: https://boelederuyter-lang.github.io" "https://lrclib.net/api/search?q=test" | grep -i "access-control" || echo "geen"
