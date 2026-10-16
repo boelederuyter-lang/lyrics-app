@@ -59,8 +59,15 @@ function shown(s: PlaybackSnapshot, slew: Slew, now = performance.now()): number
   return Math.min(Math.max(pos, 0), s.track.durationMs || Infinity);
 }
 
+/** Spotify-app in development mode: alleen accounts die de eigenaar heeft toegevoegd mogen erin. */
+export function isNotRegistered(err: unknown): boolean {
+  return err instanceof api.SpotifyError && err.status === 403 && /regist/i.test(err.message);
+}
+
 function describeError(err: unknown): string {
   if (err instanceof api.SpotifyError) {
+    if (err.status === 403 && /premium/i.test(err.message))
+      return 'Bedienen vanuit Lyrics kan alleen met Spotify Premium. Bedien de muziek in Spotify, de lyrics lopen gewoon mee.';
     if (err.status === 404)
       return browserPlaybackSupported
         ? 'Geen actief Spotify-apparaat. Klik op "Speel hier af" of start muziek in Spotify.'
@@ -85,6 +92,8 @@ export function usePlayback(enabled: boolean) {
   const lastDeviceIdRef = useRef<string | null>(localStorage.getItem(LAST_DEVICE_KEY));
   /** Spotify is niet bereikbaar (app slaapt): dan moet je hem even openen. */
   const [asleep, setAsleep] = useState(false);
+  /** Dit Spotify-account staat (nog) niet op de lijst van de app. */
+  const [notRegistered, setNotRegistered] = useState(false);
   const resumeOnReturnRef = useRef(0);
   /** Telt elke play/pauze-druk, zodat een latere controle weet of je intussen iets anders deed. */
   const toggleCountRef = useRef(0);
@@ -271,7 +280,8 @@ export function usePlayback(enabled: boolean) {
             });
           }
         } catch (err) {
-          setError(describeError(err));
+          if (isNotRegistered(err)) setNotRegistered(true);
+          else setError(describeError(err));
         }
         const s = snapRef.current;
         if (s.track?.id !== previousTrack) delay = TRACK_CHANGE_POLL_MS;
@@ -368,5 +378,6 @@ export function usePlayback(enabled: boolean) {
     error,
     clearError: () => setError(null),
     asleep,
+    notRegistered,
   };
 }

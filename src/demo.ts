@@ -101,5 +101,5 @@ export function useDemoPlayback() {
     isLocal: true,
   };
 
-  return { snapshot, getPosition, deviceReady: true, controls, error: null, clearError: () => {}, asleep: false };
+  return { snapshot, getPosition, deviceReady: true, controls, error: null, clearError: () => {}, asleep: false, notRegistered: false };
 }

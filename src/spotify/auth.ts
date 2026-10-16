@@ -1,5 +1,7 @@
 // Spotify login via Authorization Code + PKCE: er is geen backend of client secret nodig.
 
+import { parseInvite } from './invite';
+
 const CLIENT_ID_KEY = 'lyrics.client-id';
 const ENV_CLIENT_ID = (import.meta.env.VITE_SPOTIFY_CLIENT_ID ?? '').trim();
 
@@ -13,6 +15,21 @@ export function getClientId(): string {
 
 export function setClientId(id: string) {
   localStorage.setItem(CLIENT_ID_KEY, id.trim());
+}
+
+/** Geopend via een uitnodigingslink? Dan de Client ID van je vriend overnemen. */
+export function acceptInviteFromUrl(): boolean {
+  if (clientIdFromBuild) return false;
+  const id = parseInvite(window.location.search);
+  if (!id) return false;
+  setClientId(id);
+  return true;
+}
+
+/** Link om te delen: wie hem opent, gebruikt dezelfde Spotify-app als jij. */
+export function inviteLink(): string {
+  const id = getClientId();
+  return clientIdFromBuild || !id ? REDIRECT_URI : `${REDIRECT_URI}?client=${encodeURIComponent(id)}`;
 }
 
 export const REDIRECT_URI =

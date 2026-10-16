@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_GRID, estimateBeatGrid, gridFromTaps, type BeatGrid } from './beat/tempo';
 import { Hud } from './components/Hud';
+import { Login } from './components/Login';
+import { ShareSheet } from './components/Share';
 import { TapSync } from './components/TapSync';
 import { DEMO_LYRICS, DEMO_TRACK, isDemo, useDemoPlayback } from './demo';
 import { primeLyrics } from './lyrics/lrclib';
 import { useLyrics } from './lyrics/useLyrics';
-import { clientIdFromBuild, completeLoginFromUrl, getClientId, isLoggedIn, login, logout, REDIRECT_URI, setClientId } from './spotify/auth';
+import { acceptInviteFromUrl, completeLoginFromUrl, isLoggedIn, logout } from './spotify/auth';
 import { browserPlaybackSupported, usePlayback } from './spotify/usePlayback';
 import { delayFor, formatDelay, withDelay, type SyncStore } from './sync/delay';
 import { ART_MODES, Background, type ArtMode } from './visual/Background';
@@ -32,6 +34,7 @@ function usePersisted<T>(key: string, initial: T) {
 }
 
 export default function App() {
+  const [invited] = useState(acceptInviteFromUrl);
   const [loggedIn, setLoggedIn] = useState(isLoggedIn);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -42,7 +45,7 @@ export default function App() {
   }, []);
 
   if (isDemo) return <Player demo onLogout={() => window.location.assign(window.location.pathname)} />;
-  if (!loggedIn) return <Login error={authError} />;
+  if (!loggedIn) return <Login error={authError} invited={invited} />;
   return (
     <Player
       onLogout={() => {
@@ -53,95 +56,14 @@ export default function App() {
   );
 }
 
-function Login({ error }: { error: string | null }) {
-  const [clientId, setClientIdState] = useState(getClientId);
-  const [draft, setDraft] = useState('');
-  const [copied, setCopied] = useState(false);
-
-  const copyRedirect = () => {
-    navigator.clipboard?.writeText(REDIRECT_URI).then(() => setCopied(true), () => {});
-  };
-
-  return (
-    <main className="login">
-      <Background art={null} lineKey={-1} />
-      <div className="login-card">
-        <TitleCard title="Lyrics" subtitle="Spotify lyrics, live op de beat" />
-        {clientId ? (
-          <div className="connect">
-            <button className="accent big" onClick={() => login()}>
-              Verbind met Spotify
-            </button>
-            {!clientIdFromBuild && (
-              <button
-                className="text-link"
-                onClick={() => {
-                  setClientId('');
-                  setClientIdState('');
-                }}
-              >
-                Andere Client ID
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="setup">
-            <p>Eenmalig instellen:</p>
-            <ol>
-              <li>
-                Maak een app op{' '}
-                <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer">
-                  developer.spotify.com/dashboard
-                </a>{' '}
-                en vink <b>Web API</b> en <b>Web Playback SDK</b> aan.
-              </li>
-              <li>
-                Zet deze Redirect URI erbij:
-                <button className="copy" onClick={copyRedirect}>
-                  <code>{REDIRECT_URI}</code>
-                  <span>{copied ? 'gekopieerd' : 'kopieer'}</span>
-                </button>
-              </li>
-              <li>Plak hier de Client ID van je app:</li>
-            </ol>
-            <form
-              className="client-id"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!draft.trim()) return;
-                setClientId(draft);
-                setClientIdState(getClientId());
-              }}
-            >
-              <input
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="Client ID"
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck={false}
-              />
-              <button className="accent" type="submit">
-                Opslaan
-              </button>
-            </form>
-          </div>
-        )}
-        {error && <p className="error">{error}</p>}
-        <a className="demo-link" href="?demo">
-          Eerst kijken? Open de demo →
-        </a>
-      </div>
-    </main>
-  );
-}
-
 if (isDemo) primeLyrics(DEMO_TRACK.id, DEMO_LYRICS);
 
 function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boolean }) {
   const spotify = usePlayback(!demo);
   const demoPlayback = useDemoPlayback();
-  const { snapshot, getPosition, deviceReady, controls, error, clearError, asleep } = demo ? demoPlayback : spotify;
+  const { snapshot, getPosition, deviceReady, controls, error, clearError, asleep, notRegistered } = demo
+    ? demoPlayback
+    : spotify;
   const track = snapshot.track;
   const lyricsState = useLyrics(track);
   const lyrics = lyricsState.status === 'ready' ? lyricsState.lyrics : null;
@@ -170,7 +92,13 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
   );
   const nudgeDelay = useCallback((delta: number) => setDelay((d) => d + delta), [setDelay]);
   const [syncing, setSyncing] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Nummer in de titel van het tabblad / de app-switcher.
+  useEffect(() => {
+    document.title = track ? `${track.name} · ${track.artists[0] ?? ''} · Lyrics` : 'Lyrics';
+  }, [track?.name, track?.artists]);
 
   useEffect(() => {
     if (!notice) return;
@@ -247,7 +175,7 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (syncing || e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (syncing || sharing || e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
       const styleIndex = Number(e.key) - 1;
       if (STAGE_STYLES[styleIndex]) return setStyle(STAGE_STYLES[styleIndex].id);
       switch (e.key) {
@@ -289,7 +217,7 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [controls, getPosition, onTap, nudgeDelay, setStyle, toggleFullscreen, syncing, lines, cycleArtMode]);
+  }, [controls, getPosition, onTap, nudgeDelay, setStyle, toggleFullscreen, syncing, sharing, lines, cycleArtMode]);
 
   const lyricsNote =
     !track
@@ -300,7 +228,9 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
           ? 'Geen lyrics gevonden'
           : lyricsState.status === 'error'
             ? lyricsState.message
-            : lyrics?.kind === 'plain'
+            : lyrics?.kind === 'instrumental'
+              ? 'Instrumentaal'
+              : lyrics?.kind === 'plain'
               ? 'Alleen ongesynchroniseerde lyrics'
               : lyrics?.kind === 'synced' && !lyrics.wordTimed
                 ? 'Woord-timing geschat'
@@ -310,7 +240,25 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
     <main className={`player ${hudVisible ? '' : 'cursor-hidden'}`} data-art={artMode}>
       <Background art={track?.albumArt ?? null} lineKey={cursor.line} mode={artMode} dim={!coverMoment} />
 
-      {!track ? (
+      {notRegistered ? (
+        <div className="stage">
+          <div className="idle">
+            <TitleCard title="Nog geen toegang" subtitle="Je Spotify-account staat nog niet op de lijst" />
+            <p className="explain">
+              Vraag degene die je de link stuurde om je toe te voegen in het Spotify-dashboard (User Management), met het
+              e-mailadres van je Spotify-account. Daarna werkt het meteen.
+            </p>
+            <div className="button-row">
+              <button className="accent big" onClick={() => window.location.reload()}>
+                Opnieuw proberen
+              </button>
+              <button className="ghost big" onClick={onLogout}>
+                Ander account
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : !track ? (
         <div className="stage">
           <div className="idle">
             <TitleCard
@@ -334,8 +282,17 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
         <PlainLyrics lines={lyrics.lines} getTime={getTime} durationMs={track.durationMs} />
       ) : (
         <div className="stage">
-          <TitleCard key={track.id} title={track.name} subtitle={track.artists.join(', ')} />
-          {lyricsState.status !== 'loading' && <Bars />}
+          <div className="idle">
+            <TitleCard key={track.id} title={track.name} subtitle={track.artists.join(', ')} />
+            <span className={`label ${lyricsState.status === 'loading' ? 'pulse' : ''}`}>
+              {lyricsState.status === 'loading'
+                ? 'Lyrics zoeken'
+                : lyrics?.kind === 'instrumental'
+                  ? 'Instrumentaal'
+                  : 'Geen lyrics gevonden voor dit nummer'}
+            </span>
+            {lyricsState.status !== 'loading' && <Bars />}
+          </div>
         </div>
       )}
 
@@ -355,11 +312,14 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
         lyricsNote={lyricsNote}
         controls={controls}
         onFullscreen={document.fullscreenEnabled ? toggleFullscreen : null}
+        artMode={artMode}
+        onArtMode={setArtMode}
+        onShare={() => setSharing(true)}
         onLogout={onLogout}
         logoutLabel={demo ? 'Demo sluiten' : 'Uitloggen'}
-        artLabel={ART_MODES.find((a) => a.id === artMode)?.label ?? ''}
-        onCycleArt={cycleArtMode}
       />
+
+      {sharing && <ShareSheet onClose={() => setSharing(false)} />}
 
       {syncing && lines && (
         <TapSync

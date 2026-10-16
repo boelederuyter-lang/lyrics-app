@@ -159,7 +159,293 @@ code {
   100% { transform: translate(0, 0); }
 }
 
-/* ---------------------------------------------------------------- login */
+/* ---------------------------------------------------------------- basis-onderdelen
+   Eén stijl voor alles: de taal van de lyrics.
+   - gevuld (wit blok, zwarte letters) = zoals woorden in het refrein
+   - omlijnd = zoals woorden die nog komen
+   - label = klein, grijs, ver uit elkaar, zoals "volgende regel"                          */
+
+.label {
+  font-family: var(--ui);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--grey);
+  text-shadow: none;
+}
+
+.label.pulse {
+  animation: pulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+  from {
+    opacity: 0.35;
+  }
+}
+
+.accent,
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  height: 42px;
+  padding: 0 1.05rem;
+  border: 1.5px solid #fff;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  text-shadow: none;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    transform 0.1s;
+}
+
+.accent {
+  background: #fff;
+  color: #000;
+}
+
+.ghost {
+  background: transparent;
+  color: #fff;
+  border-color: rgb(255 255 255 / 0.4);
+}
+
+.ghost:hover {
+  border-color: #fff;
+}
+
+.ghost.on {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+
+.accent:active,
+.ghost:active {
+  transform: scale(0.96);
+}
+
+.square {
+  width: 42px;
+  padding: 0;
+}
+
+.big {
+  height: 56px;
+  padding: 0 1.6rem;
+  font-size: 1.35rem;
+}
+
+.chip {
+  padding: 0 0.35rem;
+  font-family: var(--display);
+  font-size: 1.1rem;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.segmented {
+  display: flex;
+  border: 1.5px solid rgb(255 255 255 / 0.4);
+  background: var(--glass);
+}
+
+.segmented button {
+  border: 0;
+  background: transparent;
+  padding: 0 1rem;
+  height: 39px;
+  font-family: var(--display);
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--grey);
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.segmented button.on {
+  color: #000;
+  background: #fff;
+}
+
+.text-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: var(--ui);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--grey);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.error {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 3px solid #fff;
+  font-family: var(--ui);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  text-align: left;
+  color: #fff;
+  text-shadow: none;
+}
+
+/* Paneel: omlijnd vlak met uitleg */
+.panel {
+  display: grid;
+  gap: 0.9rem;
+  justify-items: start;
+  width: 100%;
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1.5px solid rgb(255 255 255 / 0.18);
+  background: rgb(10 10 10 / 0.72);
+  text-align: left;
+}
+
+.panel p,
+.steps p,
+.explain {
+  margin: 0;
+  font-family: var(--ui);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: rgb(255 255 255 / 0.82);
+  text-shadow: none;
+}
+
+.panel .accent.big {
+  width: 100%;
+}
+
+.explain {
+  max-width: 34rem;
+  text-align: center;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* Invoerveld + knop */
+.field {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.field input {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  height: 42px;
+  padding: 0 0.8rem;
+  border: 1.5px solid rgb(255 255 255 / 0.4);
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--ui);
+  font-size: 16px; /* voorkomt inzoomen op iOS */
+}
+
+.field input:focus {
+  outline: none;
+  border-color: #fff;
+}
+
+.field input::placeholder {
+  color: var(--grey);
+}
+
+/* Genummerde stappen: grote omlijnde cijfers, zoals woorden die nog komen */
+.steps {
+  display: grid;
+  gap: 1.1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.steps li {
+  display: grid;
+  grid-template-columns: 2.9rem minmax(0, 1fr);
+  column-gap: 0.9rem;
+  row-gap: 0.45rem;
+  align-items: start;
+  justify-items: start;
+  counter-increment: step;
+}
+
+.steps li::before {
+  content: counter(step, decimal-leading-zero);
+  grid-row: span 3;
+  font-family: var(--display);
+  font-size: 2.4rem;
+  line-height: 0.9;
+  color: transparent;
+  -webkit-text-stroke: 1.5px #fff;
+}
+
+.steps li > * {
+  grid-column: 2;
+}
+
+.steps strong {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 1.3rem;
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid rgb(255 255 255 / 0.25);
+  background: transparent;
+  text-align: left;
+}
+
+.copy code {
+  min-width: 0;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.copy span {
+  flex: none;
+  font-family: var(--display);
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ---------------------------------------------------------------- welkom */
 
 .login {
   position: relative;
@@ -167,7 +453,7 @@ code {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   place-items: center;
-  padding: 16px;
+  padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
   overflow-y: auto;
 }
 
@@ -176,165 +462,89 @@ code {
   z-index: 1;
   display: grid;
   justify-items: center;
-  gap: 2rem;
+  gap: 1.75rem;
   width: 100%;
-  max-width: 560px;
+  max-width: 520px;
   text-align: center;
-}
-
-.setup {
-  width: 100%;
-  min-width: 0;
-  text-align: left;
-  padding: 1.25rem;
-  border: 1px solid var(--line);
-  background: var(--glass);
-  line-height: 1.55;
-  font-size: 0.95rem;
-}
-
-.setup p {
-  margin: 0 0 0.5rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 0.75rem;
-  color: var(--grey);
-}
-
-.setup ol {
-  padding-left: 1.2rem;
-  margin: 0;
-  display: grid;
-  gap: 0.6rem;
-}
-
-.copy {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  margin-top: 6px;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  background: rgb(255 255 255 / 0.05);
-  text-align: left;
-}
-
-.copy code {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.copy span {
-  flex: none;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--grey);
-}
-
-.client-id {
-  display: flex;
-  gap: 8px;
-  margin-top: 0.9rem;
-}
-
-.client-id input {
-  flex: 1;
-  width: 0;
-  min-width: 0;
-  padding: 0.7rem 0.8rem;
-  border: 1px solid var(--line);
-  background: rgb(255 255 255 / 0.06);
-  border-radius: 0;
-  font-size: 16px; /* voorkomt inzoomen op iOS */
-}
-
-.client-id input:focus {
-  outline: 1px solid var(--white);
 }
 
 .connect {
   display: grid;
   justify-items: center;
-  gap: 1rem;
+  gap: 1.1rem;
 }
 
-.text-link {
-  border: 0;
-  background: none;
-  padding: 0;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--grey);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.setup {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
+
+.own-setup {
+  display: block;
+}
+
+.own-setup summary {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+}
+
+.own-setup summary::-webkit-details-marker {
+  display: none;
+}
+
+.own-setup summary::after {
+  content: '+';
+  font-family: var(--display);
+  font-size: 2rem;
+  line-height: 1;
+  transition: transform 0.2s;
+}
+
+.own-setup[open] summary::after {
+  transform: rotate(45deg);
+}
+
+.own-setup .steps {
+  margin-top: 1.1rem;
+}
+
+.install-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  max-width: 26rem;
+}
+
+.install-hint p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: rgb(255 255 255 / 0.75);
+}
+
+.glyph {
+  vertical-align: -2px;
 }
 
 .demo-link {
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-family: var(--ui);
+  font-size: 0.72rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.18em;
   color: var(--grey);
   text-decoration: none;
 }
 
-.error {
-  margin: 0;
-  color: var(--white);
-  border-left: 3px solid var(--white);
-  padding-left: 10px;
-  text-align: left;
-}
-
-/* ---------------------------------------------------------------- knoppen */
-
-.accent {
-  border: 0;
-  padding: 0.65rem 1.1rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.85rem;
-  color: #000;
-  background: var(--white);
-  transition: transform 0.1s;
-}
-
-.accent:active {
-  transform: scale(0.96);
-}
-
-.accent.big {
-  font-size: 1rem;
-  padding: 1rem 2rem;
-}
-
-.ghost {
-  display: inline-grid;
-  place-items: center;
-  min-width: 38px;
-  height: 38px;
-  padding: 0 0.7rem;
-  border: 1px solid var(--line);
-  background: transparent;
-  font-weight: 700;
-  font-size: 0.85rem;
-  transition: background 0.15s, color 0.15s;
-}
-
-.ghost:hover {
-  background: rgb(255 255 255 / 0.1);
-}
-
-.ghost.on {
-  background: var(--white);
-  color: #000;
+.demo-link::after {
+  content: ' →';
 }
 
 /* ---------------------------------------------------------------- player + HUD */
@@ -373,23 +583,19 @@ code {
   pointer-events: none;
 }
 
-.hud-bottom {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: end;
-  gap: 12px;
-}
-
-.hud-bottom > .tools {
-  justify-self: start;
-}
-
 .hud-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.hud-bottom {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: 12px;
 }
 
 .now-playing {
@@ -411,6 +617,7 @@ code {
 
 .now-playing div {
   display: grid;
+  gap: 2px;
   min-width: 0;
 }
 
@@ -425,96 +632,84 @@ code {
 .now-playing strong {
   font-family: var(--display);
   font-weight: 400;
-  font-size: 1.15rem;
+  font-size: 1.25rem;
+  line-height: 1.05;
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
 
-.now-playing span {
+.now-playing span,
+.now-playing small {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
   color: var(--grey);
-  font-size: 0.85rem;
+}
+
+.now-playing small {
+  color: var(--dim);
 }
 
 .now-playing em {
   font-style: normal;
 }
 
-.now-playing small {
-  color: var(--dim);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
-.segmented {
-  display: flex;
-  border: 1px solid var(--line);
-  background: var(--glass);
-}
-
-.segmented button {
-  border: 0;
-  background: transparent;
-  padding: 0.55rem 0.95rem;
-  font-weight: 800;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--grey);
-  transition: background 0.15s, color 0.15s;
-}
-
-.segmented button.on {
-  color: #000;
-  background: var(--white);
-}
-
 .hud-group {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
 }
 
 .hud-group.right {
   justify-content: flex-end;
 }
 
-.tools {
+/* Instellingen: paneel met benoemde rijen */
+.sheet {
+  justify-self: start;
+  display: grid;
+  gap: 0.8rem;
+  min-width: min(440px, 100%);
+  padding: 1rem;
+  border: 1.5px solid rgb(255 255 255 / 0.18);
+  background: rgb(10 10 10 / 0.95);
   visibility: hidden;
   opacity: 0;
-  transform: translateY(8px);
-  transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
-  padding: 6px;
-  border: 1px solid var(--line);
-  background: rgb(10 10 10 / 0.94);
+  transform: translateY(10px);
+  transition:
+    opacity 0.2s,
+    transform 0.2s,
+    visibility 0.2s;
 }
 
-.tools.open {
+.sheet.open {
   visibility: visible;
   opacity: 1;
   transform: none;
 }
 
-.chip {
-  padding: 0 0.5rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  font-size: 0.8rem;
-  white-space: nowrap;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+.sheet-row {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
 }
 
-.chip.plain {
-  text-transform: none;
+.sheet-row + .sheet-row {
+  padding-top: 0.8rem;
+  border-top: 1px solid rgb(255 255 255 / 0.1);
 }
 
-.sep {
-  width: 1px;
-  height: 22px;
-  background: var(--line);
-  margin: 0 2px;
+.sheet-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.sheet .segmented {
+  justify-self: start;
 }
 
 .transport {
@@ -547,6 +742,7 @@ code {
   height: 24px;
 }
 
+/* Meldingen: wit blok, zoals een woord in het refrein */
 .toast {
   position: fixed;
   left: 50%;
@@ -555,12 +751,22 @@ code {
   z-index: 20;
   width: max-content;
   max-width: calc(100% - 32px);
-  padding: 0.8rem 1rem;
-  background: var(--white);
+  padding: 0.85rem 1rem;
+  background: #fff;
   color: #000;
+  font-family: var(--ui);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
+  line-height: 1.45;
   cursor: pointer;
+  animation: toast-in 0.25s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
 }
 
 .toast-action {
@@ -572,8 +778,47 @@ code {
 
 .toast-action .accent {
   flex: none;
-  color: var(--white);
+  color: #fff;
   background: #000;
+  border-color: #000;
+}
+
+/* Venster (bv. delen) */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  overflow-y: auto;
+  background: rgb(0 0 0 / 0.82);
+  animation: fade-in 0.2s both;
+}
+
+.modal-card {
+  display: grid;
+  gap: 1.4rem;
+  justify-items: start;
+  width: min(540px, 100%);
+  padding: 1.5rem;
+  border: 1.5px solid rgb(255 255 255 / 0.2);
+  background: var(--bg);
+  animation: toast-in 0.3s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.modal-card h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(2.4rem, 9vw, 3.4rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.modal-close {
+  justify-self: stretch;
 }
 
 /* ---------------------------------------------------------------- stage */
@@ -856,7 +1101,7 @@ code {
 .idle {
   display: grid;
   justify-items: center;
-  gap: 2.5rem;
+  gap: 2rem;
 }
 
 .interlude {
@@ -1015,15 +1260,19 @@ code {
     display: flex;
     justify-content: center;
   }
-  .tools .sep {
-    display: none;
-  }
-  .tools {
+  .sheet {
     position: absolute;
-    bottom: calc(100% + 10px);
+    bottom: calc(100% + 12px);
     left: 0;
     right: 0;
-    justify-content: center;
+    min-width: 0;
+  }
+  .sheet-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .now-playing strong {
+    font-size: 1.1rem;
   }
   .hud-group.right {
     position: absolute;
@@ -1056,7 +1305,8 @@ code {
   }
   .bg-grain,
   .hw.active,
-  .sw.active {
+  .sw.active,
+  .label.pulse {
     animation: none;
   }
 }

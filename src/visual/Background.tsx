@@ -1,9 +1,9 @@
 export type ArtMode = 'color' | 'mono' | 'blur';
 
 export const ART_MODES: { id: ArtMode; label: string }[] = [
-  { id: 'color', label: 'Hoes: kleur' },
-  { id: 'mono', label: 'Hoes: z/w' },
-  { id: 'blur', label: 'Hoes: vaag' },
+  { id: 'color', label: 'Kleur' },
+  { id: 'mono', label: 'Z/W' },
+  { id: 'blur', label: 'Vaag' },
 ];
 
 interface Props {

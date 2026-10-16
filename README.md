@@ -32,6 +32,18 @@ De workflow in `.github/workflows/deploy.yml` bouwt en publiceert de app bij elk
 3. Client ID: plak hem in de app bij de eerste keer openen, **of** zet hem als repository variable `SPOTIFY_CLIENT_ID` (Settings → Secrets and variables → Actions → Variables). Dan hoeven je vrienden niks in te vullen.
 4. Vrienden toevoegen: dashboard → je app → **User Management** (naam + e-mail van hun Spotify-account).
 
+## Delen met vrienden
+
+In de app: instellingen → **Deel Lyrics**. Daar staat wat je moet doen:
+
+1. Zet je vriend op de lijst in het Spotify-dashboard (**User Management**, max. 5 mensen).
+2. Stuur de link. Jouw Client ID zit in de link (`?client=…`), dus je vriend hoeft niks in te stellen.
+3. Een iPhone bewaart de app op het beginscherm los van Safari. Daar vraagt Lyrics één keer om de link: **Plak uitnodiging**.
+
+Wil je dat niemand ooit iets hoeft te plakken? Zet je Client ID als repository variable `SPOTIFY_CLIENT_ID` (zie hierboven), dan zit hij in de app zelf.
+
+Staat een vriend nog niet op de lijst, dan laat Lyrics dat duidelijk zien (**Nog geen toegang**). Zonder Premium werken de lyrics wel, maar bedienen kan alleen in Spotify zelf.
+
 ## Op je telefoon
 
 - **iPhone**: open de link in Safari → deel-knop → *Zet op beginscherm*.
