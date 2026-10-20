@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { Fragment, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import type { LyricLine } from '../lyrics/types';
+import { Fragment, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import type { LyricLine, LyricWord } from '../lyrics/types';
+import { splitsLetters, wordEffects, type EffectPack, type WordEffect } from './effects';
 import { textWidthAt100, useFitText, useFontsReady, useViewportSize } from './useFitText';
 import type { Cursor } from './useStageClock';
 
@@ -24,6 +25,38 @@ function rand(seed: number): number {
 
 const letters = (word: string) => word.replace(/[^\p{L}\p{N}]/gu, '').length || 1;
 
+/** Per woord: het effect (of niets als woord-effecten uit staan). */
+function useWordEffects(line: LyricLine, enabled: boolean): WordEffect[] {
+  return useMemo(
+    () => (enabled ? wordEffects(line.words.map((w) => w.text)) : line.words.map(() => ({ fx: null, size: null }))),
+    [line, enabled],
+  );
+}
+
+/**
+ * De tekst van een woord, met het woord-effect eromheen en zo nodig in losse letters.
+ * --dur/--n laten "Typ" de letters vullen in het tempo waarin het woord gezongen wordt.
+ */
+function WordText({ word, effect, pack }: { word: LyricWord; effect: WordEffect; pack: EffectPack }) {
+  const chars = [...word.text];
+  const body = splitsLetters(pack, effect.fx)
+    ? chars.map((c, i) => (
+        <span key={i} className="ch" style={{ '--i': i } as CSSProperties}>
+          {c}
+        </span>
+      ))
+    : word.text;
+  const dur = Math.min(1.2, Math.max(0.12, (word.end - word.start) / 1000) * 0.8);
+  return (
+    <span
+      className={`fx ${effect.fx ? `fx-${effect.fx}` : ''}`}
+      style={{ '--dur': `${dur.toFixed(2)}s`, '--n': chars.length } as CSSProperties}
+    >
+      {body}
+    </span>
+  );
+}
+
 /** Snel en strak: woorden "slaan" erin in plaats van te stuiteren. */
 const SLAM = [0.2, 0.9, 0.3, 1] as const;
 
@@ -44,11 +77,24 @@ function hardMaxPx(text: string, v: Viewport): number {
 /** Hoe hard een woord inslaat: bij rustige nummers (lage energie) bijna niet. */
 const slamFor = (max: number, energy: number) => 1 + (max - 1) * energy;
 
-function HardLine({ line, index, word, energy }: { line: LyricLine; index: number; word: number; energy: number }) {
+interface LineProps {
+  line: LyricLine;
+  index: number;
+  word: number;
+  energy: number;
+  pack: EffectPack;
+  wordFx: boolean;
+}
+
+/** "Rek" trekt het woord horizontaal uit en heeft dus meer ruimte nodig dan inslaan. */
+const slamMax = (pack: EffectPack, max: number) => (pack === 'stretch' ? max + 0.5 : max);
+
+function HardLine({ line, index, word, energy, pack, wordFx }: LineProps) {
   const ref = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize();
-  // Het actieve woord slaat in (CSS-animatie); --slam bepaalt hoe groot het begint.
-  useFitText(ref, hardMaxPx(line.text, viewport), '.hw', { slam: slamFor(1.3, energy) });
+  const effects = useWordEffects(line, wordFx);
+  // Het actieve woord komt binnen (CSS-animatie); --slam bepaalt hoe groot het mag beginnen.
+  useFitText(ref, hardMaxPx(line.text, viewport), '.hw', { slam: slamFor(slamMax(pack, 1.3), energy) });
   const align = (['left', 'center', 'left', 'right'] as const)[Math.floor(rand(index + 5) * 4)];
   return (
     <motion.div
@@ -61,7 +107,9 @@ function HardLine({ line, index, word, energy }: { line: LyricLine; index: numbe
       {line.words.map((w, i) => (
         <Fragment key={i}>
           {i > 0 && ' '}
-          <span className={`hw ${wordState(i, word)}`}>{w.text}</span>
+          <span className={`hw ${wordState(i, word)} ${effects[i].size ?? ''}`}>
+            <WordText word={w} effect={effects[i]} pack={pack} />
+          </span>
         </Fragment>
       ))}
     </motion.div>
@@ -75,10 +123,14 @@ function stackMaxPx(wordCount: number, v: Viewport): number {
   return Math.min(0.24 * v.width, 0.3 * v.height, (1.6 / Math.max(1, wordCount)) * v.height);
 }
 
-function StackLine({ line, index, word, energy }: { line: LyricLine; index: number; word: number; energy: number }) {
+/** Harde woorden groter, zachte kleiner. */
+const SIZE_SCALE = { loud: 1.18, quiet: 0.78 } as const;
+
+function StackLine({ line, index, word, energy, pack, wordFx }: LineProps) {
   const ref = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize();
-  useFitText(ref, stackMaxPx(line.words.length, viewport), '.sw', { slam: slamFor(1.6, energy) });
+  const effects = useWordEffects(line, wordFx);
+  useFitText(ref, stackMaxPx(line.words.length, viewport), '.sw', { slam: slamFor(slamMax(pack, 1.6), energy) });
   return (
     <motion.div
       ref={ref}
@@ -88,12 +140,13 @@ function StackLine({ line, index, word, energy }: { line: LyricLine; index: numb
       exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.12 } }}
     >
       {line.words.map((w, i) => {
-        const size = Math.min(1, 6 / letters(w.text));
+        const { size: loudness } = effects[i];
+        const size = Math.min(1, 6 / letters(w.text)) * (loudness ? SIZE_SCALE[loudness] : 1);
         const r = rand(index * 13 + i);
         const look = r < 0.55 ? 'solid' : r < 0.8 ? 'outline' : 'invert';
         return (
-          <span key={i} className={`sw ${look} ${wordState(i, word)}`} style={{ fontSize: `${size.toFixed(3)}em` }}>
-            {w.text}
+          <span key={i} className={`sw ${look} ${wordState(i, word)} ${loudness ?? ''}`} style={{ fontSize: `${size.toFixed(3)}em` }}>
+            <WordText word={w} effect={effects[i]} pack={pack} />
           </span>
         );
       })}
@@ -221,9 +274,13 @@ interface StageProps {
   style: StageStyle;
   title: string;
   energy: number;
+  /** Hoe het actieve woord binnenkomt (per nummer gekozen). */
+  pack: EffectPack;
+  /** Effecten op losse woorden ("regen", "vuur", HOOFDLETTERS…). */
+  wordFx: boolean;
 }
 
-export function LyricsStage({ lines, cursor, style, title, energy }: StageProps) {
+export function LyricsStage({ lines, cursor, style, title, energy, pack, wordFx }: StageProps) {
   const current = cursor.line >= 0 ? lines[cursor.line] : null;
 
   if (style === 'karaoke') {
@@ -235,14 +292,22 @@ export function LyricsStage({ lines, cursor, style, title, energy }: StageProps)
   }
 
   return (
-    <div className={`stage stage-${style} ${current?.chorus ? 'hype' : ''}`}>
+    <div className={`stage stage-${style} pack-${pack} ${current?.chorus ? 'hype' : ''}`}>
       <div className="beat-bump">
         <AnimatePresence>
           {current ? (
             style === 'kinetic' ? (
-              <HardLine key={`l${cursor.line}`} line={current} index={cursor.line} word={cursor.word} energy={energy} />
+              <HardLine key={`l${cursor.line}`} line={current} index={cursor.line} word={cursor.word} energy={energy} pack={pack} wordFx={wordFx} />
             ) : (
-              <StackLine key={`s${cursor.line}`} line={current} index={cursor.line} word={cursor.word} energy={energy} />
+              <StackLine
+                key={`s${cursor.line}`}
+                line={current}
+                index={cursor.line}
+                word={cursor.word}
+                energy={energy}
+                pack={pack}
+                wordFx={wordFx}
+              />
             )
           ) : (
             <Interlude key="interlude" cursor={cursor} lines={lines} title={title} />

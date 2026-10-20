@@ -699,6 +699,9 @@ code {
   display: grid;
   gap: 0.8rem;
   min-width: min(440px, 100%);
+  max-height: calc(100dvh - 190px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 1rem;
   border: 1.5px solid rgb(255 255 255 / 0.18);
   background: rgb(10 10 10 / 0.95);
@@ -738,6 +741,28 @@ code {
 
 .sheet .segmented {
   justify-self: start;
+}
+
+.sheet-stack {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.segmented.wrap {
+  flex-wrap: wrap;
+}
+
+/* Wat Auto voor dit nummer koos */
+.segmented button.auto-pick {
+  color: #fff;
+  box-shadow: inset 0 -2px 0 #fff;
+}
+
+.sheet .hint {
+  font-family: var(--ui);
+  font-size: 0.72rem;
+  color: var(--dim);
 }
 
 .transport {
@@ -1006,6 +1031,291 @@ code {
 
 .sw.past.solid {
   color: rgb(255 255 255 / 0.75);
+}
+
+/* Effecten: elk nummer een eigen manier waarop woorden binnenkomen (.pack-*), plus effecten op
+   losse woorden (.fx-*). Uitslag schaalt met --energy, dus rustige nummers blijven rustig. */
+
+.fx,
+.ch {
+  display: inline-block;
+}
+
+/* Typ: letters vullen een voor een, in het tempo van het woord */
+.pack-type .hw.active,
+.pack-type .sw.active,
+.pack-wave .hw.active,
+.pack-wave .sw.active {
+  animation: none;
+}
+
+.pack-type .hw.active .ch {
+  animation: type-hard 0.01s calc(var(--i) * var(--dur) / var(--n)) both;
+}
+
+@keyframes type-hard {
+  from {
+    color: transparent;
+    -webkit-text-stroke: 1.5px var(--faint);
+  }
+}
+
+.pack-type .sw.active .ch {
+  animation: type-stack 0.01s calc(var(--i) * var(--dur) / var(--n)) both;
+}
+
+@keyframes type-stack {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Golf: letters springen om de beurt op */
+.pack-wave .hw.active .ch,
+.pack-wave .sw.active .ch {
+  animation: wave 0.32s calc(var(--i) * 0.035s) cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+@keyframes wave {
+  from {
+    transform: translateY(calc(-0.08em - 0.22em * var(--energy, 0.5)));
+  }
+}
+
+.pack-wave .sw.active .ch {
+  animation-name: wave-stack;
+}
+
+@keyframes wave-stack {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-0.08em - 0.22em * var(--energy, 0.5)));
+  }
+}
+
+/* Zweef: komt omhoog drijven uit het niets */
+.pack-rise .hw.active,
+.pack-rise .sw.active {
+  animation: rise 0.38s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(0.3em);
+  }
+}
+
+/* Glitch: schokt binnen met een spookbeeld ernaast */
+.pack-glitch .hw.active,
+.pack-glitch .sw.active {
+  animation: glitch 0.24s steps(1, end) both;
+}
+
+@keyframes glitch {
+  0% {
+    opacity: 0.4;
+    transform: translate(calc(0.04em * var(--energy, 0.5)), -0.02em) skewX(-8deg);
+    text-shadow:
+      -0.06em 0 rgb(255 255 255 / 0.5),
+      0.06em 0 rgb(120 120 120 / 0.7);
+    clip-path: inset(10% 0 45% 0);
+  }
+  25% {
+    transform: translate(calc(-0.05em * var(--energy, 0.5)), 0.02em);
+    text-shadow:
+      0.08em 0 rgb(255 255 255 / 0.45),
+      -0.05em 0 rgb(120 120 120 / 0.7);
+    clip-path: inset(50% 0 5% 0);
+  }
+  50% {
+    transform: translate(calc(0.04em * var(--energy, 0.5)), 0);
+    text-shadow: -0.03em 0 rgb(255 255 255 / 0.4);
+    clip-path: inset(0 0 0 0);
+  }
+  75%,
+  100% {
+    transform: none;
+    text-shadow: none;
+    clip-path: none;
+  }
+}
+
+/* Rek: wordt breed uitgetrokken en veert terug (--slam = de ruimte die er is) */
+.pack-stretch .hw.active,
+.pack-stretch .sw.active {
+  animation: stretch 0.2s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+@keyframes stretch {
+  from {
+    transform: scale(var(--slam, 1.6), calc(1.15 - 0.4 * var(--energy, 0.5)));
+  }
+}
+
+/* -- Woord-effecten (alleen terwijl het woord gezongen wordt) */
+
+/* Regen/tranen: letters druppelen naar beneden */
+.hw.active .fx-rain .ch,
+.sw.active .fx-rain .ch {
+  animation: drip 0.5s calc(var(--i) * 0.05s) cubic-bezier(0.3, 0.8, 0.4, 1) both;
+}
+
+@keyframes drip {
+  from {
+    opacity: 0;
+    transform: translateY(-0.45em) scaleY(1.3);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(0.06em) scaleY(0.95);
+  }
+}
+
+/* Vuur: flakkert en gloeit */
+.hw.active .fx-fire,
+.sw.active .fx-fire {
+  animation: flicker 0.5s steps(1, end) infinite;
+}
+
+@keyframes flicker {
+  0%,
+  100% {
+    text-shadow:
+      0 0 0.15em rgb(255 255 255 / 0.7),
+      0 -0.05em 0.4em rgb(255 255 255 / 0.35);
+  }
+  30% {
+    opacity: 0.75;
+    text-shadow: 0 0 0.08em rgb(255 255 255 / 0.5);
+  }
+  60% {
+    text-shadow:
+      0 0 0.25em rgb(255 255 255 / 0.8),
+      0 -0.1em 0.6em rgb(255 255 255 / 0.4);
+  }
+}
+
+/* Schudden (en HARD): trilt */
+.hw.active .fx-shake,
+.sw.active .fx-shake,
+.hw.loud.active .fx,
+.sw.loud.active .fx {
+  animation: shake 0.12s linear infinite;
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: none;
+  }
+  25% {
+    transform: translate(calc(0.035em * var(--energy, 0.5)), calc(-0.02em * var(--energy, 0.5))) rotate(-1deg);
+  }
+  50% {
+    transform: translate(calc(-0.03em * var(--energy, 0.5)), calc(0.025em * var(--energy, 0.5)));
+  }
+  75% {
+    transform: translate(calc(0.02em * var(--energy, 0.5)), 0) rotate(1deg);
+  }
+}
+
+/* Koud: bibbert, met een ijzige rand */
+.hw.active .fx-cold,
+.sw.active .fx-cold {
+  animation: shiver 0.08s linear infinite;
+  text-shadow: 0 0 0.2em rgb(255 255 255 / 0.6);
+  letter-spacing: 0.02em;
+}
+
+@keyframes shiver {
+  50% {
+    transform: translateX(0.012em);
+  }
+}
+
+/* Omhoog / omlaag: het woord beweegt mee terwijl het gezongen wordt */
+.hw.active .fx-up,
+.sw.active .fx-up {
+  animation: float-up var(--dur) cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@keyframes float-up {
+  to {
+    transform: translateY(calc(-0.06em - 0.12em * var(--energy, 0.5)));
+  }
+}
+
+.hw.active .fx-down,
+.sw.active .fx-down {
+  animation: drop-down var(--dur) cubic-bezier(0.5, 0, 0.8, 0.4) both;
+}
+
+@keyframes drop-down {
+  to {
+    transform: translateY(calc(0.05em + 0.1em * var(--energy, 0.5))) rotate(2deg);
+  }
+}
+
+/* Liefde/hart: klopt als een hart */
+.hw.active .fx-love,
+.sw.active .fx-love {
+  animation: heartbeat 0.8s ease-in-out infinite;
+}
+
+@keyframes heartbeat {
+  0%,
+  45%,
+  100% {
+    transform: scale(1);
+  }
+  15% {
+    transform: scale(calc(1 + 0.14 * var(--energy, 0.5) + 0.04));
+  }
+  30% {
+    transform: scale(calc(1 + 0.07 * var(--energy, 0.5) + 0.02));
+  }
+}
+
+/* Geld/goud: een glans trekt over het woord */
+.hw.active .fx-money,
+.sw.active:not(.invert) .fx-money {
+  color: transparent;
+  background: linear-gradient(110deg, #fff 35%, #8a8a8a 48%, #fff 52%, #fff 100%) 100% 0 / 260% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  text-shadow: none; /* bij background-clip: text zou de schaduw door de letters heen schijnen */
+  animation: shine 0.7s ease-out both;
+}
+
+.is-chorus .hw.active .fx-money {
+  color: inherit;
+  background: none;
+  animation: none;
+}
+
+@keyframes shine {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+/* HARD en zacht */
+.hw.loud {
+  font-size: 1.18em;
+}
+
+.hw.quiet {
+  font-size: 0.78em;
+}
+
+.hw.quiet.active,
+.sw.quiet.active {
+  opacity: 0.7;
 }
 
 /* Flow */
@@ -1295,6 +1605,9 @@ code {
     right: 0;
     min-width: 0;
   }
+  .segmented.wrap button {
+    flex: 1 0 25%;
+  }
   .sheet-row {
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
@@ -1334,6 +1647,10 @@ code {
   .bg-grain,
   .hw.active,
   .sw.active,
+  .hw.active .fx,
+  .sw.active .fx,
+  .hw.active .ch,
+  .sw.active .ch,
   .label.pulse {
     animation: none;
   }

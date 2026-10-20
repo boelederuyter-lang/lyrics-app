@@ -12,6 +12,7 @@ import { acceptInviteFromUrl, completeLoginFromUrl, isLoggedIn, logout } from '.
 import { browserPlaybackSupported, usePlayback } from './spotify/usePlayback';
 import { delayFor, formatDelay, withDelay, type SyncStore } from './sync/delay';
 import { ART_MODES, Background, type ArtMode } from './visual/Background';
+import { autoPack, EFFECT_PACKS, withEffect, type EffectChoice, type EffectStore } from './visual/effects';
 import { Bars, LyricsStage, STAGE_STYLES, TitleCard, type StageStyle } from './visual/LyricsStage';
 import { useStageClock } from './visual/useStageClock';
 
@@ -134,6 +135,23 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
   const autoEnergy = useMemo(() => (lines ? songEnergy(lines) : 0.5), [lines]);
   const energy = motionEnergy(motion, autoEnergy);
 
+  // Effect per nummer: automatisch gekozen bij de energie, of zelf gekozen (per nummer onthouden).
+  const [effectStore, setEffectStore] = usePersisted<EffectStore>('lyrics.fx', {});
+  const [wordFx, setWordFx] = usePersisted<boolean>('lyrics.wordfx', true);
+  const autoEffect = autoPack(trackId ?? '', autoEnergy);
+  const effectChoice: EffectChoice = (trackId && effectStore[trackId]) || 'auto';
+  const pack = effectChoice === 'auto' ? autoEffect : effectChoice;
+  const setEffect = useCallback(
+    (choice: EffectChoice) => {
+      if (trackId) setEffectStore((store) => withEffect(store, trackId, choice));
+    },
+    [trackId, setEffectStore],
+  );
+  const cycleEffect = useCallback(() => {
+    const order: EffectChoice[] = ['auto', ...EFFECT_PACKS.map((p) => p.id)];
+    setEffect(order[(order.indexOf(effectChoice) + 1) % order.length]);
+  }, [effectChoice, setEffect]);
+
   const cursor = useStageClock(lines, getTime, grid, snapshot.paused, energy);
   // Instrumentaal stuk midden in het nummer (geen tekst in beeld): dan mag de hoes helder.
   const coverMoment = !!lines && style !== 'karaoke' && cursor.line < 0 && cursor.next !== 0;
@@ -219,11 +237,14 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
         case 'h':
           cycleArtMode();
           break;
+        case 'e':
+          cycleEffect();
+          break;
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [controls, getPosition, onTap, nudgeDelay, setStyle, toggleFullscreen, syncing, sharing, lines, cycleArtMode]);
+  }, [controls, getPosition, onTap, nudgeDelay, setStyle, toggleFullscreen, syncing, sharing, lines, cycleArtMode, cycleEffect]);
 
   const lyricsNote =
     !track
@@ -300,7 +321,7 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
           </div>
         </div>
       ) : lines ? (
-        <LyricsStage lines={lines} cursor={cursor} style={style} title={track.name} energy={energy} />
+        <LyricsStage lines={lines} cursor={cursor} style={style} title={track.name} energy={energy} pack={pack} wordFx={wordFx} />
       ) : lyrics?.kind === 'plain' ? (
         <PlainLyrics lines={lyrics.lines} getTime={getTime} durationMs={track.durationMs} />
       ) : (
@@ -354,6 +375,11 @@ function Player({ onLogout, demo = false }: { onLogout: () => void; demo?: boole
         onArtMode={setArtMode}
         motion={motion}
         onMotion={setMotion}
+        effect={effectChoice}
+        autoEffect={autoEffect}
+        onEffect={lines ? setEffect : null}
+        wordFx={wordFx}
+        onWordFx={setWordFx}
         onShare={() => setSharing(true)}
         onLogout={onLogout}
         logoutLabel={demo ? 'Demo sluiten' : 'Uitloggen'}

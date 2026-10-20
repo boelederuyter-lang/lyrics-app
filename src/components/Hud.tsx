@@ -4,6 +4,7 @@ import type { BeatGrid } from '../beat/tempo';
 import type { PlaybackSnapshot } from '../spotify/usePlayback';
 import { formatDelay } from '../sync/delay';
 import { ART_MODES, type ArtMode } from '../visual/Background';
+import { EFFECT_PACKS, packLabel, type EffectChoice, type EffectPack } from '../visual/effects';
 import { STAGE_STYLES, type StageStyle } from '../visual/LyricsStage';
 
 interface Props {
@@ -31,6 +32,12 @@ interface Props {
   onArtMode: (m: ArtMode) => void;
   motion: MotionMode;
   onMotion: (m: MotionMode) => void;
+  effect: EffectChoice;
+  autoEffect: EffectPack;
+  /** null als er geen gesynchroniseerde lyrics zijn (dan valt er niets te kiezen). */
+  onEffect: ((e: EffectChoice) => void) | null;
+  wordFx: boolean;
+  onWordFx: (on: boolean) => void;
   onShare: () => void;
   onLogout: () => void;
   logoutLabel: string;
@@ -116,6 +123,40 @@ export function Hud(p: Props) {
                   {m.label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {p.onEffect && (
+            <div className="sheet-row">
+              <span className="label">Effect</span>
+              <div className="sheet-stack">
+                <div className="segmented wrap" title="Hoe woorden binnenkomen, per nummer onthouden (E)">
+                  {(['auto', ...EFFECT_PACKS.map((e) => e.id)] as EffectChoice[]).map((id) => (
+                    <button
+                      key={id}
+                      className={`${p.effect === id ? 'on' : ''} ${p.effect === 'auto' && id === p.autoEffect ? 'auto-pick' : ''}`}
+                      onClick={() => p.onEffect?.(id)}
+                    >
+                      {id === 'auto' ? 'Auto' : packLabel(id)}
+                    </button>
+                  ))}
+                </div>
+                <small className="hint">
+                  {p.effect === 'auto' ? `Auto koos ${packLabel(p.autoEffect)} voor dit nummer` : 'Onthouden voor dit nummer'}
+                </small>
+              </div>
+            </div>
+          )}
+
+          <div className="sheet-row">
+            <span className="label">Woorden</span>
+            <div className="segmented" title="Effecten op woorden als regen, vuur en HOOFDLETTERS">
+              <button className={p.wordFx ? 'on' : ''} onClick={() => p.onWordFx(true)}>
+                Effecten aan
+              </button>
+              <button className={p.wordFx ? '' : 'on'} onClick={() => p.onWordFx(false)}>
+                Uit
+              </button>
             </div>
           </div>
 

@@ -11,6 +11,8 @@ Verbind met Spotify en zie de lyrics van wat je luistert als een strakke zwart-w
 - **3 stijlen**: `Hard` (één regel groot, woorden slaan erin), `Flow` (meekleurende regels), `Stack` (cover-achtige blokletters).
 - **Op de beat**: tempo geschat uit de lyric-timing. Klopt het niet? Tik mee met **Tap**, of gebruik ½ / ×2 (onder de instellingenknop).
 - **Beweging past zich aan**: rustige nummers (weinig lettergrepen per seconde) knikken en flitsen minder dan snelle rap. Of kies zelf: instellingen → *Beweging* → Auto / Rustig / Vol.
+- **Elk nummer een eigen effect**: hoe woorden binnenkomen verschilt per nummer — Slam, Typ, Zweef, Glitch, Golf of Rek. Auto kiest er een die bij het tempo past; zelf kiezen (instellingen → *Effect*) wordt per nummer onthouden.
+- **Woord-effecten**: regen/tranen druppelen, vuur flakkert, koud bibbert, liefde/hart klopt, geld glanst, omhoog/omlaag beweegt mee. WOORDEN IN HOOFDLETTERS en met ! worden groter en trillen, ad-libs tussen haakjes worden klein. Uit te zetten bij instellingen → *Woorden*.
 - **Sync per nummer**: met **Tik-sync** tik je drie keer als een regel begint; de app rekent de vertraging uit en onthoudt die per nummer. Nieuwe nummers starten met je gebruikelijke vertraging (handig met Bluetooth-oortjes).
 - **Albumhoes op de achtergrond**: scherp in het midden met een wazige versie eromheen. Donkerder als er tekst staat, helder tijdens instrumentale stukken. Te wisselen tussen kleur, zwart-wit en alleen vaag (instellingen → *Hoes*).
 - Grijstinten voor de tekst, filmkorrel, flits bij elke nieuwe regel.
@@ -78,6 +80,7 @@ Client ID kan lokaal ook in `.env` (zie `.env.example`).
 | `T` | tap tempo |
 | `S` | tik-sync (daarna `Spatie` als de regel begint, `Esc` om te stoppen) |
 | `H` | achtergrond: hoes in kleur / zwart-wit / vaag |
+| `E` | volgend effect voor dit nummer |
 | `[` / `]` | lyrics 0,1 s eerder / later |
 | `F` | fullscreen |
 

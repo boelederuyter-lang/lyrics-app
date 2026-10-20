@@ -41,10 +41,10 @@ export const DEMO_TRACK: TrackInfo = {
 
 const DEMO_LRC = `
 [00:02.67]Kom uit de schaduw, stap in het licht
-[00:05.33]Elke zin raak, elk woord een gedicht
+[00:05.33]Regen op m'n raam, maar vuur in m'n gedicht
 [00:08.00]Beat in m'n borst en de bas in de straat
 [00:10.67]Ik schrijf het op tot het blad niet meer praat
-[00:13.33]Ze zeggen rustig aan, maar ik ken geen rem
+[00:13.33]Ze zeggen rustig aan, maar ik ga HARD (yeah)
 [00:16.00]Heel de stad hoort nu eindelijk m'n stem
 [00:18.67]Van niks naar iets, van de kelder naar boven
 [00:21.33]Wat ik zie in m'n hoofd ga je straks pas geloven
